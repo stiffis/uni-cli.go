@@ -16,7 +16,8 @@ import (
 type View int
 
 const (
-	ViewTasks View = iota
+	ViewWelcome View = iota
+	ViewTasks
 	ViewCalendar
 	ViewClasses
 	ViewGrades
@@ -39,6 +40,10 @@ type Model struct {
 	// Command mode (like vim)
 	commandMode   bool
 	commandInput  string
+	
+	// Sidebar navigation
+	sidebarMode   bool
+	sidebarCursor int
 }
 
 // NewModel creates a new application model
@@ -46,7 +51,7 @@ func NewModel(db *database.DB, cfg *config.Config) Model {
 	return Model{
 		db:          db,
 		cfg:         cfg,
-		currentView: ViewTasks,
+		currentView: ViewWelcome,
 		taskScreen:  screens.NewTaskScreen(db),
 	}
 }
@@ -89,6 +94,31 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
+		// If in sidebar mode, handle sidebar navigation
+		if m.sidebarMode {
+			switch msg.String() {
+			case "j", "down":
+				if m.sidebarCursor < 6 {
+					m.sidebarCursor++
+				}
+				return m, nil
+			case "k", "up":
+				if m.sidebarCursor > 0 {
+					m.sidebarCursor--
+				}
+				return m, nil
+			case "enter":
+				// Select the view (add 1 to skip ViewWelcome)
+				m.currentView = View(m.sidebarCursor + 1)
+				m.sidebarMode = false
+				return m, nil
+			case "esc":
+				m.sidebarMode = false
+				return m, nil
+			}
+			return m, nil
+		}
+
 		// Normal mode key handling
 		switch msg.String() {
 		case "ctrl+c":
@@ -98,33 +128,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.commandMode = true
 			m.commandInput = ""
 			return m, nil
-
-		case "1":
-			m.currentView = ViewTasks
-			return m, nil
-		case "2":
-			m.currentView = ViewCalendar
-			return m, nil
-		case "3":
-			m.currentView = ViewClasses
-			return m, nil
-		case "4":
-			m.currentView = ViewGrades
-			return m, nil
-		case "5":
-			m.currentView = ViewNotes
-			return m, nil
-		case "6":
-			m.currentView = ViewStats
-			return m, nil
-		case "7":
-			m.currentView = ViewSettings
-			return m, nil
 		}
 	}
 
-	// Update current screen (only if not in command mode)
-	if !m.commandMode {
+	// Update current screen (only if not in command mode or sidebar mode)
+	if !m.commandMode && !m.sidebarMode {
 		var cmd tea.Cmd
 		switch m.currentView {
 		case ViewTasks:
@@ -151,20 +159,16 @@ func (m Model) executeCommand() (tea.Model, tea.Cmd) {
 		// TODO: Show help screen
 		m.currentView = ViewSettings // Placeholder for now
 		return m, nil
-	case "1":
-		m.currentView = ViewTasks
-	case "2":
-		m.currentView = ViewCalendar
-	case "3":
-		m.currentView = ViewClasses
-	case "4":
-		m.currentView = ViewGrades
-	case "5":
-		m.currentView = ViewNotes
-	case "6":
-		m.currentView = ViewStats
-	case "7":
-		m.currentView = ViewSettings
+	case "s", "sidebar":
+		// Enter sidebar navigation mode
+		m.sidebarMode = true
+		// Start at current view, but adjust for ViewWelcome offset
+		if m.currentView == ViewWelcome {
+			m.sidebarCursor = 0 // Start at Tasks
+		} else {
+			m.sidebarCursor = int(m.currentView) - 1 // -1 to adjust for ViewWelcome
+		}
+		return m, nil
 	}
 	
 	return m, nil
@@ -215,6 +219,8 @@ func (m Model) View() string {
 	// Main content
 	var content string
 	switch m.currentView {
+	case ViewWelcome:
+		content = m.renderWelcome()
 	case ViewTasks:
 		content = m.taskScreen.View()
 	case ViewCalendar:
@@ -272,12 +278,20 @@ func (m Model) renderSidebar(height int, width int) string {
 	}
 
 	var items []string
-	for _, v := range views {
+	for i, v := range views {
 		style := lipgloss.NewStyle().Padding(0, 1)
-		if v.view == m.currentView {
+		
+		// If in sidebar mode, highlight cursor position
+		if m.sidebarMode && i == m.sidebarCursor {
+			style = style.
+				Background(styles.Secondary).
+				Foreground(styles.Background).
+				Bold(true)
+		} else if v.view == m.currentView {
+			// Otherwise highlight current view
 			style = style.
 				Background(styles.Primary).
-				Foreground(lipgloss.Color("#FFFFFF")).
+				Foreground(styles.Background).
 				Bold(true)
 		}
 		
@@ -287,10 +301,18 @@ func (m Model) renderSidebar(height int, width int) string {
 
 	sidebarContent := lipgloss.JoinVertical(lipgloss.Left, items...)
 
-	return styles.Panel.
+	// Choose border color based on sidebar mode
+	sidebarPanel := styles.Panel.
 		Width(width).
-		Height(height).
-		Render(sidebarContent)
+		Height(height)
+	
+	if m.sidebarMode {
+		// Highlight border when in sidebar mode
+		sidebarPanel = sidebarPanel.
+			BorderForeground(styles.Secondary)
+	}
+
+	return sidebarPanel.Render(sidebarContent)
 }
 
 // renderStatusBar renders the bottom status bar
@@ -313,8 +335,16 @@ func (m Model) renderStatusBar() string {
 			Render(commandPrompt + cursor)
 	}
 	
+	// If in sidebar mode, show navigation help
+	if m.sidebarMode {
+		statusContent := styles.Dimmed.Render("SIDEBAR: j/k to navigate  |  Enter to select  |  Esc to exit")
+		return styles.StatusBar.
+			Width(m.width).
+			Render(statusContent)
+	}
+	
 	// Normal mode status bar
-	statusContent := styles.Dimmed.Render("Navigate: 1-7  |  [:] Command mode")
+	statusContent := styles.Dimmed.Render("[:s] Sidebar  |  [:h] Help  |  [:q] Quit")
 
 	return styles.StatusBar.
 		Width(m.width).
@@ -326,4 +356,62 @@ func max(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// renderWelcome renders the welcome screen
+func (m Model) renderWelcome() string {
+	title := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(styles.Primary).
+		Render("Welcome to UniCLI")
+	
+	subtitle := lipgloss.NewStyle().
+		Foreground(styles.Foreground).
+		Render("Your terminal-based student organization manager")
+	
+	gettingStarted := lipgloss.NewStyle().
+		Foreground(styles.Secondary).
+		Render("Getting Started:")
+	
+	availableViews := lipgloss.NewStyle().
+		Foreground(styles.Info).
+		Render("Available Views:")
+	
+	footer := lipgloss.NewStyle().
+		Foreground(styles.Muted).
+		Italic(true).
+		Render("Press :s to get started!")
+	
+	lines := []string{
+		"",
+		title,
+		"",
+		subtitle,
+		"",
+		"",
+		gettingStarted,
+		"",
+		styles.Dimmed.Render("  • Press :s to open the sidebar and navigate between views"),
+		styles.Dimmed.Render("  • Press :h for help"),
+		styles.Dimmed.Render("  • Press :q to quit"),
+		"",
+		"",
+		availableViews,
+		"",
+		styles.Dimmed.Render("  Tasks      - Manage your tasks and deadlines"),
+		styles.Dimmed.Render("  Calendar   - View your schedule"),
+		styles.Dimmed.Render("  Classes    - Organize your classes"),
+		styles.Dimmed.Render("  Grades     - Track your grades"),
+		styles.Dimmed.Render("  Notes      - Quick notes and reminders"),
+		styles.Dimmed.Render("  Stats      - View your productivity stats"),
+		"",
+		"",
+		footer,
+	}
+	
+	welcome := lipgloss.NewStyle().
+		Padding(2, 4).
+		Render(strings.Join(lines, "\n"))
+
+	return welcome
 }
