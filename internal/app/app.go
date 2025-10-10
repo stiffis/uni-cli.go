@@ -382,7 +382,8 @@ func (m Model) renderWelcome() string {
 		Italic(true).
 		Render("Press :s to get started!")
 	
-	lines := []string{
+	// Left side content
+	leftLines := []string{
 		"",
 		title,
 		"",
@@ -391,27 +392,62 @@ func (m Model) renderWelcome() string {
 		"",
 		gettingStarted,
 		"",
-		styles.Dimmed.Render("  • Press :s to open the sidebar and navigate between views"),
+		styles.Dimmed.Render("  • Press :s to open sidebar"),
 		styles.Dimmed.Render("  • Press :h for help"),
 		styles.Dimmed.Render("  • Press :q to quit"),
 		"",
 		"",
 		availableViews,
 		"",
-		styles.Dimmed.Render("  Tasks      - Manage your tasks and deadlines"),
-		styles.Dimmed.Render("  Calendar   - View your schedule"),
-		styles.Dimmed.Render("  Classes    - Organize your classes"),
-		styles.Dimmed.Render("  Grades     - Track your grades"),
-		styles.Dimmed.Render("  Notes      - Quick notes and reminders"),
-		styles.Dimmed.Render("  Stats      - View your productivity stats"),
+		styles.Dimmed.Render("  Tasks      - Manage tasks"),
+		styles.Dimmed.Render("  Calendar   - View schedule"),
+		styles.Dimmed.Render("  Classes    - Organize classes"),
+		styles.Dimmed.Render("  Grades     - Track grades"),
+		styles.Dimmed.Render("  Notes      - Quick notes"),
+		styles.Dimmed.Render("  Stats      - Productivity stats"),
 		"",
 		"",
 		footer,
 	}
 	
+	leftContent := lipgloss.NewStyle().
+		Width(45).
+		Render(strings.Join(leftLines, "\n"))
+	
+	// ASCII art from file
+	asciiArt := []string{
+		"       ⢀⣴⡾⠃⠄⠄⠄⠄⠄⠈⠺⠟⠛⠛⠛⠛⠻⢿⣿⣿⣿⣿⣶⣤⡀ ",
+		"     ⢀⣴⣿⡿⠁⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⠄⣸⣿⣿⣿⣿⣿⣿⣿⣷ ",
+		"    ⣴⣿⡿⡟⡼⢹⣷⢲⡶⣖⣾⣶⢄⠄⠄⠄⠄⠄⢀⣼⣿⢿⣿⣿⣿⣿⣿⣿⣿",
+		"   ⣾⣿⡟⣾⡸⢠⡿⢳⡿⠍⣼⣿⢏⣿⣷⢄⡀⠄⢠⣾⢻⣿⣸⣿⣿⣿⣿⣿⣿⣿",
+		" ⣡⣿⣿⡟⡼⡁⠁⣰⠂⡾⠉⢨⣿⠃⣿⡿⠍⣾⣟⢤⣿⢇⣿⢇⣿⣿⢿⣿⣿⣿⣿⣿",
+		"⣱⣿⣿⡟⡐⣰⣧⡷⣿⣴⣧⣤⣼⣯⢸⡿⠁⣰⠟⢀⣼⠏⣲⠏⢸⣿⡟⣿⣿⣿⣿⣿⣿",
+		"⣿⣿⡟⠁⠄⠟⣁⠄⢡⣿⣿⣿⣿⣿⣿⣦⣼⢟⢀⡼⠃⡹⠃⡀⢸⡿⢸⣿⣿⣿⣿⣿⡟",
+		"⣿⣿⠃⠄⢀⣾⠋⠓⢰⣿⣿⣿⣿⣿⣿⠿⣿⣿⣾⣅⢔⣕⡇⡇⡼⢁⣿⣿⣿⣿⣿⣿⢣",
+		"⣿⡟⠄⠄⣾⣇⠷⣢⣿⣿⣿⣿⣿⣿⣿⣭⣀⡈⠙⢿⣿⣿⡇⡧⢁⣾⣿⣿⣿⣿⣿⢏⣾",
+		"⣿⡇⠄⣼⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠟⢻⠇⠄⠄⢿⣿⡇⢡⣾⣿⣿⣿⣿⣿⣏⣼⣿",
+		"⣿⣷⢰⣿⣿⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⢰⣧⣀⡄⢀⠘⡿⣰⣿⣿⣿⣿⣿⣿⠟⣼⣿⣿",
+		"⢹⣿⢸⣿⣿⠟⠻⢿⣿⣿⣿⣿⣿⣿⣿⣶⣭⣉⣤⣿⢈⣼⣿⣿⣿⣿⣿⣿⠏⣾⣹⣿⣿",
+		"⢸⠇⡜⣿⡟⠄⠄⠄⠈⠙⣿⣿⣿⣿⣿⣿⣿⣿⠟⣱⣻⣿⣿⣿⣿⣿⠟⠁⢳⠃⣿⣿⣿",
+		" ⣰⡗⠹⣿⣄⠄⠄⠄⢀⣿⣿⣿⣿⣿⣿⠟⣅⣥⣿⣿⣿⣿⠿⠋  ⣾⡌⢠⣿⡿⠃",
+		"⠜⠋⢠⣷⢻⣿⣿⣶⣾⣿⣿⣿⣿⠿⣛⣥⣾⣿⠿⠟⠛⠉           ",
+	}
+	
+	rightContent := lipgloss.NewStyle().
+		Foreground(styles.Primary).
+		Padding(2, 0).
+		Render(strings.Join(asciiArt, "\n"))
+	
+	// Combine left and right side by side
+	combined := lipgloss.JoinHorizontal(
+		lipgloss.Top,
+		leftContent,
+		rightContent,
+	)
+	
 	welcome := lipgloss.NewStyle().
 		Padding(2, 4).
-		Render(strings.Join(lines, "\n"))
+		Render(combined)
 
 	return welcome
 }
