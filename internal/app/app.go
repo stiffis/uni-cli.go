@@ -203,7 +203,14 @@ func (m Model) View() string {
 	contentHeight := m.height - 4 // Reserve space for title and status bars
 
 	// Sidebar
-	sidebar := m.renderSidebar(contentHeight)
+	sidebarWidth := 20
+	sidebar := m.renderSidebar(contentHeight, sidebarWidth)
+
+	// Main content - account for borders (4 chars: 2 for sidebar border, 2 for content border)
+	contentWidth := m.width - sidebarWidth - 4
+	if contentWidth < 10 {
+		contentWidth = 10
+	}
 
 	// Main content
 	var content string
@@ -211,21 +218,21 @@ func (m Model) View() string {
 	case ViewTasks:
 		content = m.taskScreen.View()
 	case ViewCalendar:
-		content = "📅 Calendar View (Coming Soon)"
+		content = "Calendar View (Coming Soon)"
 	case ViewClasses:
-		content = "🎒 Classes View (Coming Soon)"
+		content = "Classes View (Coming Soon)"
 	case ViewGrades:
-		content = "📊 Grades View (Coming Soon)"
+		content = "Grades View (Coming Soon)"
 	case ViewNotes:
-		content = "📝 Notes View (Coming Soon)"
+		content = "Notes View (Coming Soon)"
 	case ViewStats:
-		content = "📈 Statistics View (Coming Soon)"
+		content = "Statistics View (Coming Soon)"
 	case ViewSettings:
-		content = "⚙️  Settings View (Coming Soon)"
+		content = "Settings View (Coming Soon)"
 	}
 
 	contentPanel := styles.Panel.
-		Width(m.width - 22).
+		Width(contentWidth).
 		Height(contentHeight).
 		Render(content)
 
@@ -249,7 +256,7 @@ func (m Model) View() string {
 }
 
 // renderSidebar renders the navigation sidebar
-func (m Model) renderSidebar(height int) string {
+func (m Model) renderSidebar(height int, width int) string {
 	views := []struct {
 		view  View
 		key   string
@@ -281,7 +288,7 @@ func (m Model) renderSidebar(height int) string {
 	sidebarContent := lipgloss.JoinVertical(lipgloss.Left, items...)
 
 	return styles.Panel.
-		Width(20).
+		Width(width).
 		Height(height).
 		Render(sidebarContent)
 }

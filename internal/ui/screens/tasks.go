@@ -90,7 +90,7 @@ func (s *TaskScreen) View() string {
 	var lines []string
 	
 	// Section: Today
-	lines = append(lines, styles.Title.Render("📋 Today's Tasks"))
+	lines = append(lines, styles.Title.Render("Today's Tasks"))
 	lines = append(lines, "")
 	
 	todayTasks := s.filterToday()
@@ -105,7 +105,7 @@ func (s *TaskScreen) View() string {
 	lines = append(lines, "")
 	
 	// Section: Upcoming
-	lines = append(lines, styles.Title.Render("📅 Upcoming"))
+	lines = append(lines, styles.Title.Render("Upcoming"))
 	lines = append(lines, "")
 	
 	upcomingTasks := s.filterUpcoming()
@@ -121,7 +121,7 @@ func (s *TaskScreen) View() string {
 	lines = append(lines, "")
 	
 	// Section: All Tasks
-	lines = append(lines, styles.Title.Render("📝 All Tasks"))
+	lines = append(lines, styles.Title.Render("All Tasks"))
 	lines = append(lines, "")
 	
 	for i, task := range s.tasks {
@@ -141,26 +141,26 @@ func (s *TaskScreen) renderTask(task models.Task, selected bool) string {
 	var icon string
 	switch task.Status {
 	case models.TaskStatusCompleted:
-		icon = "✓"
+		icon = "[✓]"
 	case models.TaskStatusInProgress:
-		icon = "◐"
+		icon = "[~]"
 	case models.TaskStatusCancelled:
-		icon = "✗"
+		icon = "[x]"
 	default:
-		icon = "○"
+		icon = "[ ]"
 	}
 
 	// Priority indicator
 	var priorityIndicator string
 	switch task.Priority {
 	case models.TaskPriorityUrgent:
-		priorityIndicator = "🔴"
+		priorityIndicator = "!!"
 	case models.TaskPriorityHigh:
-		priorityIndicator = "🟡"
+		priorityIndicator = "! "
 	case models.TaskPriorityMedium:
-		priorityIndicator = "🔵"
+		priorityIndicator = "- "
 	case models.TaskPriorityLow:
-		priorityIndicator = "⚪"
+		priorityIndicator = "  "
 	}
 
 	// Due date

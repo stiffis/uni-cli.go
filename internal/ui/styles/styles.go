@@ -4,21 +4,23 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Colors - Inspired by lazygit
+// Colors - Zen & Friendly palette (inspired by Nord + Catppuccin)
 var (
-	Primary   = lipgloss.Color("#7C3AED") // Purple
-	Secondary = lipgloss.Color("#06B6D4") // Cyan
-	Success   = lipgloss.Color("#10B981") // Green
-	Warning   = lipgloss.Color("#F59E0B") // Amber
-	Danger    = lipgloss.Color("#EF4444") // Red
-	Info      = lipgloss.Color("#3B82F6") // Blue
-	Muted     = lipgloss.Color("#6B7280") // Gray
+	// Main colors - Soft and calming
+	Primary   = lipgloss.Color("#88C0D0") // Soft Blue (peaceful)
+	Secondary = lipgloss.Color("#A3BE8C") // Soft Green (zen)
+	Success   = lipgloss.Color("#A3BE8C") // Soft Green
+	Warning   = lipgloss.Color("#EBCB8B") // Soft Yellow
+	Danger    = lipgloss.Color("#BF616A") // Soft Red
+	Info      = lipgloss.Color("#81A1C1") // Soft Blue-Gray
+	Muted     = lipgloss.Color("#4C566A") // Muted Gray
 	
-	Background       = lipgloss.Color("#1E1E2E")
-	BackgroundLight  = lipgloss.Color("#313244")
-	Foreground       = lipgloss.Color("#CDD6F4")
-	Border           = lipgloss.Color("#45475A")
-	BorderFocused    = lipgloss.Color("#7C3AED")
+	// Backgrounds - Dark but warm
+	Background       = lipgloss.Color("#2E3440") // Warm dark gray
+	BackgroundLight  = lipgloss.Color("#3B4252") // Slightly lighter
+	Foreground       = lipgloss.Color("#ECEFF4") // Soft white
+	Border           = lipgloss.Color("#4C566A") // Subtle border
+	BorderFocused    = lipgloss.Color("#88C0D0") // Soft blue focus
 )
 
 // Base styles
@@ -42,7 +44,7 @@ var (
 	// TitleBar is the top bar style
 	TitleBar = lipgloss.NewStyle().
 			Background(Primary).
-			Foreground(lipgloss.Color("#FFFFFF")).
+			Foreground(Background).
 			Bold(true).
 			Padding(0, 1)
 
@@ -59,7 +61,7 @@ var (
 	// ListItemSelected is for selected list items
 	ListItemSelected = ListItem.Copy().
 				Background(Primary).
-				Foreground(lipgloss.Color("#FFFFFF")).
+				Foreground(Background).
 				Bold(true)
 
 	// Shortcut displays keyboard shortcuts
