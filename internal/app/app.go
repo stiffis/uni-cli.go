@@ -237,10 +237,17 @@ func (m Model) View() string {
 		content = "Settings View (Coming Soon)"
 	}
 
-	contentPanel := styles.Panel.
+	// Create content panel with conditional border color
+	contentPanelStyle := styles.Panel.
 		Width(contentWidth).
-		Height(contentHeight).
-		Render(content)
+		Height(contentHeight)
+	
+	// Highlight content panel border when NOT in sidebar mode
+	if !m.sidebarMode {
+		contentPanelStyle = contentPanelStyle.BorderForeground(styles.Primary)
+	}
+	
+	contentPanel := contentPanelStyle.Render(content)
 
 	// Combine sidebar and content
 	mainArea := lipgloss.JoinHorizontal(
