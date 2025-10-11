@@ -345,6 +345,9 @@ func (m Model) renderSidebar(height int, width int) string {
 
 // renderStatusBar renders the bottom status bar
 func (m Model) renderStatusBar() string {
+	// Terminal size indicator (right side)
+	terminalSize := styles.Dimmed.Render(fmt.Sprintf("%dx%d", m.width, m.height))
+	
 	// If in command mode, show command input
 	if m.commandMode {
 		commandPrompt := lipgloss.NewStyle().
@@ -358,25 +361,61 @@ func (m Model) renderStatusBar() string {
 			Foreground(lipgloss.Color("#FFFFFF")).
 			Render(" ")
 		
+		leftContent := commandPrompt + cursor
+		spacing := m.width - lipgloss.Width(leftContent) - lipgloss.Width(terminalSize) - 2
+		if spacing < 0 {
+			spacing = 0
+		}
+		
+		statusLine := lipgloss.JoinHorizontal(
+			lipgloss.Top,
+			leftContent,
+			strings.Repeat(" ", spacing),
+			terminalSize,
+		)
+		
 		return styles.StatusBar.
 			Width(m.width).
-			Render(commandPrompt + cursor)
+			Render(statusLine)
 	}
 	
 	// If in sidebar mode, show navigation help
 	if m.sidebarMode {
-		statusContent := styles.Dimmed.Render("SIDEBAR: j/k to navigate  |  Enter to select  |  Esc to exit")
+		leftContent := styles.Dimmed.Render("SIDEBAR: j/k to navigate  |  Enter to select  |  Esc to exit")
+		spacing := m.width - lipgloss.Width(leftContent) - lipgloss.Width(terminalSize) - 2
+		if spacing < 0 {
+			spacing = 0
+		}
+		
+		statusLine := lipgloss.JoinHorizontal(
+			lipgloss.Top,
+			leftContent,
+			strings.Repeat(" ", spacing),
+			terminalSize,
+		)
+		
 		return styles.StatusBar.
 			Width(m.width).
-			Render(statusContent)
+			Render(statusLine)
 	}
 	
 	// Normal mode status bar
-	statusContent := styles.Dimmed.Render("[:s] Sidebar  |  [:h] Help  |  [:q] Quit")
+	leftContent := styles.Dimmed.Render("[:s] Sidebar  |  [:h] Help  |  [:q] Quit")
+	spacing := m.width - lipgloss.Width(leftContent) - lipgloss.Width(terminalSize) - 2
+	if spacing < 0 {
+		spacing = 0
+	}
+	
+	statusLine := lipgloss.JoinHorizontal(
+		lipgloss.Top,
+		leftContent,
+		strings.Repeat(" ", spacing),
+		terminalSize,
+	)
 
 	return styles.StatusBar.
 		Width(m.width).
-		Render(statusContent)
+		Render(statusLine)
 }
 
 func max(a, b int) int {
