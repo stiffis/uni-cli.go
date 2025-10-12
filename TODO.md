@@ -1,29 +1,31 @@
 # TODO - UniCLI Development Tasks
 
-## 🔴 Alta Prioridad (MVP)
+## ✅ COMPLETADO - FASE 1: Persistencia
 
 ### Database Layer
-- [ ] Implementar `base.go` con interfaz Repository base
-- [ ] Implementar `TaskRepository` completo
-  - [ ] Create
-  - [ ] FindByID
-  - [ ] FindAll
-  - [ ] Update
-  - [ ] Delete
-  - [ ] FindByStatus
-  - [ ] FindDueToday
-  - [ ] FindUpcoming
-- [ ] Conectar TaskRepository con TaskScreen
-- [ ] Reemplazar datos de muestra con datos reales de DB
+- [x] Implementar `base.go` con interfaz Repository base
+- [x] Implementar `TaskRepository` completo
+  - [x] Create
+  - [x] FindByID
+  - [x] FindAll
+  - [x] Update
+  - [x] Delete
+  - [x] FindByStatus
+  - [x] FindDueToday
+  - [x] FindUpcoming
+  - [x] FindOverdue
+  - [x] ToggleComplete
+- [x] Conectar TaskRepository con TaskScreen
+- [x] Reemplazar datos de muestra con datos reales de DB
+- [x] Gestión de tags (create, link, load)
 
-### Task Management (CRUD completo)
-- [ ] Crear componente Form para nueva tarea
-- [ ] Crear componente Modal para confirmaciones
-- [ ] Implementar crear tarea (tecla `n`)
-- [ ] Implementar editar tarea (tecla `e`)
-- [ ] Implementar eliminar tarea (tecla `d`)
-- [ ] Implementar toggle completado (tecla `space`)
-- [ ] Validación de formularios
+### Task Management (Funcionalidad básica)
+- [x] Implementar toggle completado (tecla `space`)
+- [x] Implementar eliminar tarea (tecla `d`)
+- [x] Implementar refrescar (tecla `r`)
+- [x] Estados de UI (loading, error, empty)
+
+## 🔴 Alta Prioridad (MVP) - EN PROGRESO
 
 ### UI Components
 - [ ] Input field component

@@ -4,12 +4,14 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/stiffis/UniCLI/internal/database/repositories"
 	_ "modernc.org/sqlite"
 )
 
 // DB wraps the database connection
 type DB struct {
-	conn *sql.DB
+	conn       *sql.DB
+	taskRepo   *repositories.TaskRepository
 }
 
 // New creates a new database connection
@@ -24,7 +26,12 @@ func New(path string) (*DB, error) {
 		return nil, fmt.Errorf("failed to enable foreign keys: %w", err)
 	}
 
-	return &DB{conn: conn}, nil
+	db := &DB{conn: conn}
+	
+	// Initialize repositories
+	db.taskRepo = repositories.NewTaskRepository(conn)
+
+	return db, nil
 }
 
 // Close closes the database connection
@@ -35,6 +42,11 @@ func (db *DB) Close() error {
 // Conn returns the underlying database connection
 func (db *DB) Conn() *sql.DB {
 	return db.conn
+}
+
+// Tasks returns the task repository
+func (db *DB) Tasks() *repositories.TaskRepository {
+	return db.taskRepo
 }
 
 // Migrate runs database migrations

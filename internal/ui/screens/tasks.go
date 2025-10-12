@@ -3,7 +3,6 @@ package screens
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -20,6 +19,8 @@ type TaskScreen struct {
 	selected map[int]struct{}
 	width    int
 	height   int
+	loading  bool
+	err      error
 }
 
 // NewTaskScreen creates a new task screen
@@ -28,6 +29,7 @@ func NewTaskScreen(db *database.DB) *TaskScreen {
 		db:       db,
 		tasks:    []models.Task{},
 		selected: make(map[int]struct{}),
+		loading:  true,
 	}
 }
 
@@ -57,16 +59,24 @@ func (s *TaskScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "g":
 			s.cursor = 0
 		case "G":
-			s.cursor = len(s.tasks) - 1
+			if len(s.tasks) > 0 {
+				s.cursor = len(s.tasks) - 1
+			}
 		case "space":
 			if s.cursor < len(s.tasks) {
-				s.toggleTask()
+				return s, s.toggleTask()
 			}
+		case "r":
+			// Refresh tasks
+			return s, s.loadTasks()
 		case "n":
 			// TODO: Open new task form
 			return s, nil
 		case "d":
-			// TODO: Delete task
+			// Delete current task
+			if s.cursor < len(s.tasks) {
+				return s, s.deleteTask()
+			}
 			return s, nil
 		case "e":
 			// TODO: Edit task
@@ -75,7 +85,26 @@ func (s *TaskScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tasksLoadedMsg:
 		s.tasks = msg.tasks
+		s.loading = false
+		s.err = msg.err
+		if s.cursor >= len(s.tasks) && len(s.tasks) > 0 {
+			s.cursor = len(s.tasks) - 1
+		}
 		return s, nil
+
+	case taskToggledMsg:
+		if msg.err != nil {
+			s.err = msg.err
+		}
+		// Reload tasks after toggle
+		return s, s.loadTasks()
+
+	case taskDeletedMsg:
+		if msg.err != nil {
+			s.err = msg.err
+		}
+		// Reload tasks after delete
+		return s, s.loadTasks()
 	}
 
 	return s, nil
@@ -83,6 +112,23 @@ func (s *TaskScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View renders the task screen
 func (s *TaskScreen) View() string {
+	// Show loading state
+	if s.loading {
+		return lipgloss.NewStyle().
+			Padding(2).
+			Foreground(styles.Info).
+			Render("Loading tasks...")
+	}
+
+	// Show error state
+	if s.err != nil {
+		errorMsg := fmt.Sprintf("Error: %v\n\nPress 'r' to retry", s.err)
+		return lipgloss.NewStyle().
+			Padding(2).
+			Foreground(styles.Danger).
+			Render(errorMsg)
+	}
+
 	if len(s.tasks) == 0 {
 		return s.renderEmpty()
 	}
@@ -221,6 +267,7 @@ func (s *TaskScreen) renderShortcuts() string {
 		styles.Shortcut.Render("e") + styles.ShortcutText.Render(" edit"),
 		styles.Shortcut.Render("d") + styles.ShortcutText.Render(" delete"),
 		styles.Shortcut.Render("space") + styles.ShortcutText.Render(" toggle"),
+		styles.Shortcut.Render("r") + styles.ShortcutText.Render(" refresh"),
 		styles.Shortcut.Render("j/k") + styles.ShortcutText.Render(" navigate"),
 	}
 	return strings.Join(shortcuts, "  ")
@@ -249,44 +296,54 @@ func (s *TaskScreen) filterUpcoming() []models.Task {
 }
 
 // toggleTask toggles task completion
-func (s *TaskScreen) toggleTask() {
-	// TODO: Implement task toggle
+func (s *TaskScreen) toggleTask() tea.Cmd {
+	if s.cursor >= len(s.tasks) {
+		return nil
+	}
+
+	taskID := s.tasks[s.cursor].ID
+
+	return func() tea.Msg {
+		err := s.db.Tasks().ToggleComplete(taskID)
+		return taskToggledMsg{err: err}
+	}
+}
+
+// deleteTask deletes the current task
+func (s *TaskScreen) deleteTask() tea.Cmd {
+	if s.cursor >= len(s.tasks) {
+		return nil
+	}
+
+	taskID := s.tasks[s.cursor].ID
+
+	return func() tea.Msg {
+		err := s.db.Tasks().Delete(taskID)
+		return taskDeletedMsg{err: err}
+	}
 }
 
 // loadTasks loads tasks from database
 func (s *TaskScreen) loadTasks() tea.Cmd {
 	return func() tea.Msg {
-		// TODO: Load from database
-		// For now, return sample data
-		return tasksLoadedMsg{
-			tasks: []models.Task{
-				*createSampleTask("Study for Calculus exam", models.TaskPriorityHigh, true, false),
-				*createSampleTask("Complete project proposal", models.TaskPriorityUrgent, true, false),
-				*createSampleTask("Read Chapter 5", models.TaskPriorityMedium, false, false),
-				*createSampleTask("Group meeting preparation", models.TaskPriorityMedium, false, false),
-				*createSampleTask("Submit homework", models.TaskPriorityHigh, false, true),
-			},
+		tasks, err := s.db.Tasks().FindAll()
+		if err != nil {
+			return tasksLoadedMsg{tasks: []models.Task{}, err: err}
 		}
+		return tasksLoadedMsg{tasks: tasks, err: nil}
 	}
-}
-
-// Helper to create sample tasks
-func createSampleTask(title string, priority models.TaskPriority, dueToday, overdue bool) *models.Task {
-	task := models.NewTask(title)
-	task.Priority = priority
-	
-	if dueToday {
-		now := time.Now()
-		task.DueDate = &now
-	} else if overdue {
-		yesterday := time.Now().AddDate(0, 0, -1)
-		task.DueDate = &yesterday
-	}
-	
-	return task
 }
 
 // Messages
 type tasksLoadedMsg struct {
 	tasks []models.Task
+	err   error
+}
+
+type taskToggledMsg struct {
+	err error
+}
+
+type taskDeletedMsg struct {
+	err error
 }
