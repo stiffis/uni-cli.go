@@ -1,10 +1,11 @@
-# 🎓 UniCLI - Student Organization TUI
+# 🎓 UniCLI - Student Organization TUI - In Development
 
 A modern, beautiful Terminal User Interface (TUI) application for student organization and productivity. Built with Go and Bubble Tea, inspired by lazygit's intuitive design.
 
 ## ✨ Features
 
 ### Core Functionality
+
 - 📋 **Task Management**: Create, edit, complete, and organize tasks with priorities and deadlines
 - 📅 **Calendar View**: Monthly and weekly calendar with all your events and deadlines
 - 🎒 **Class Schedule**: Weekly timetable with class information and locations
@@ -14,6 +15,7 @@ A modern, beautiful Terminal User Interface (TUI) application for student organi
 - 📈 **Statistics**: Visual insights into your productivity
 
 ### UI Features
+
 - Beautiful multi-panel interface inspired by lazygit
 - Intuitive keyboard navigation
 - Customizable color themes
@@ -37,23 +39,24 @@ go build -o unicli ./cmd/unicli
 ```
 
 ### Requirements
+
 - Go 1.21 or higher
 - A terminal with true color support (recommended)
 
 ## ⌨️ Keyboard Shortcuts
 
-| Key | Action |
-|-----|--------|
-| `Tab` / `Shift+Tab` | Navigate between panels |
+| Key                    | Action                    |
+| ---------------------- | ------------------------- |
+| `Tab` / `Shift+Tab`    | Navigate between panels   |
 | `j` / `k` or `↓` / `↑` | Navigate up/down in lists |
-| `Enter` | Select/Open item |
-| `n` | New item |
-| `e` | Edit item |
-| `d` | Delete item |
-| `Space` | Toggle complete |
-| `/` | Search/Filter |
-| `?` | Show help |
-| `q` or `Ctrl+C` | Quit |
+| `Enter`                | Select/Open item          |
+| `n`                    | New item                  |
+| `e`                    | Edit item                 |
+| `d`                    | Delete item               |
+| `Space`                | Toggle complete           |
+| `/`                    | Search/Filter             |
+| `?`                    | Show help                 |
+| `q` or `Ctrl+C`        | Quit                      |
 
 ## 📦 Project Structure
 
@@ -70,6 +73,11 @@ unicli/
 ├── pkg/                # Reusable packages
 └── data/               # User data (gitignored)
 ```
+
+##  ScreenShots
+
+![UniCLI Interface](assets/welcomeview.png)
+![Taks Management](assets/tasksview.png)
 
 ## 🛠️ Development
 
