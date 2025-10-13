@@ -215,6 +215,17 @@ func (r *TaskRepository) FindOverdue() ([]models.Task, error) {
 func (r *TaskRepository) Update(task *models.Task) error {
 	task.UpdatedAt = time.Now()
 
+	// Set CompletedAt if status is completed and it's not already set
+	if task.Status == models.TaskStatusCompleted && task.CompletedAt == nil {
+		now := time.Now()
+		task.CompletedAt = &now
+	}
+
+	// Clear CompletedAt if status is not completed
+	if task.Status != models.TaskStatusCompleted {
+		task.CompletedAt = nil
+	}
+
 	query := `
 		UPDATE tasks
 		SET title = ?, description = ?, status = ?, priority = ?,

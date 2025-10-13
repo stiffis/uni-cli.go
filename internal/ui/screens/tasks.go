@@ -8,28 +8,50 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/stiffis/UniCLI/internal/database"
 	"github.com/stiffis/UniCLI/internal/models"
+	"github.com/stiffis/UniCLI/internal/ui/components"
 	"github.com/stiffis/UniCLI/internal/ui/styles"
+)
+
+// Column represents a kanban column
+type Column int
+
+const (
+	ColumnTodo Column = iota
+	ColumnInProgress
+	ColumnDone
 )
 
 // TaskScreen is the tasks view
 type TaskScreen struct {
-	db       *database.DB
-	tasks    []models.Task
-	cursor   int
-	selected map[int]struct{}
-	width    int
-	height   int
-	loading  bool
-	err      error
+	db             *database.DB
+	tasks          []models.Task
+	activeColumn   Column         // Which column has focus
+	cursors        map[Column]int // Cursor position for each column
+	selectedTaskID string         // ID of selected task (empty if none)
+	width          int
+	height         int
+	loading        bool
+	err            error
+
+	// Form state
+	showForm bool
+	taskForm components.TaskForm
 }
 
 // NewTaskScreen creates a new task screen
 func NewTaskScreen(db *database.DB) *TaskScreen {
 	return &TaskScreen{
-		db:       db,
-		tasks:    []models.Task{},
-		selected: make(map[int]struct{}),
-		loading:  true,
+		db:           db,
+		tasks:        []models.Task{},
+		activeColumn: ColumnTodo,
+		cursors: map[Column]int{
+			ColumnTodo:       0,
+			ColumnInProgress: 0,
+			ColumnDone:       0,
+		},
+		selectedTaskID: "",
+		loading:        true,
+		showForm:       false,
 	}
 }
 
@@ -40,6 +62,28 @@ func (s *TaskScreen) Init() tea.Cmd {
 
 // Update handles messages
 func (s *TaskScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// If form is shown, handle form updates
+	if s.showForm {
+		var cmd tea.Cmd
+		s.taskForm, cmd = s.taskForm.Update(msg)
+
+		// Check if form was submitted or cancelled
+		if s.taskForm.IsSubmitted() {
+			// Create the task
+			task := s.taskForm.GetTask()
+			s.showForm = false
+			return s, s.createTask(task)
+		}
+
+		if s.taskForm.IsCancelled() {
+			s.showForm = false
+			return s, nil
+		}
+
+		return s, cmd
+	}
+
+	// Normal kanban view handling
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		s.width = msg.Width
@@ -48,38 +92,95 @@ func (s *TaskScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		switch msg.String() {
+		case "tab":
+			// Move to next column
+			s.activeColumn = (s.activeColumn + 1) % 3
+			return s, nil
+
+		case "shift+tab":
+			// Move to previous column
+			s.activeColumn = (s.activeColumn + 2) % 3
+			return s, nil
+
 		case "j", "down":
-			if s.cursor < len(s.tasks)-1 {
-				s.cursor++
+			// Move cursor down in current column
+			tasks := s.getTasksForColumn(s.activeColumn)
+			if s.cursors[s.activeColumn] < len(tasks)-1 {
+				s.cursors[s.activeColumn]++
 			}
+			return s, nil
+
 		case "k", "up":
-			if s.cursor > 0 {
-				s.cursor--
+			// Move cursor up in current column
+			if s.cursors[s.activeColumn] > 0 {
+				s.cursors[s.activeColumn]--
 			}
+			return s, nil
+
 		case "g":
-			s.cursor = 0
+			// Go to top of column
+			s.cursors[s.activeColumn] = 0
+			return s, nil
+
 		case "G":
-			if len(s.tasks) > 0 {
-				s.cursor = len(s.tasks) - 1
+			// Go to bottom of column
+			tasks := s.getTasksForColumn(s.activeColumn)
+			if len(tasks) > 0 {
+				s.cursors[s.activeColumn] = len(tasks) - 1
 			}
-		case "space":
-			if s.cursor < len(s.tasks) {
-				return s, s.toggleTask()
+			return s, nil
+
+		case "enter":
+			// Select/deselect task
+			tasks := s.getTasksForColumn(s.activeColumn)
+			if s.cursors[s.activeColumn] < len(tasks) {
+				task := tasks[s.cursors[s.activeColumn]]
+				if s.selectedTaskID == task.ID {
+					// Deselect
+					s.selectedTaskID = ""
+				} else {
+					// Select
+					s.selectedTaskID = task.ID
+				}
 			}
+			return s, nil
+
+		case "left", "h":
+			// Move selected task to previous column
+			if s.selectedTaskID != "" {
+				return s, s.moveTaskToColumn(s.selectedTaskID, s.getPreviousColumn())
+			}
+			return s, nil
+
+		case "right", "l":
+			// Move selected task to next column
+			if s.selectedTaskID != "" {
+				return s, s.moveTaskToColumn(s.selectedTaskID, s.getNextColumn())
+			}
+			return s, nil
+
+		case "delete", "backspace":
+			// Delete selected task
+			if s.selectedTaskID != "" {
+				return s, s.deleteTask(s.selectedTaskID)
+			}
+			return s, nil
+
 		case "r":
 			// Refresh tasks
 			return s, s.loadTasks()
+
 		case "n":
-			// TODO: Open new task form
+			// Open new task form
+			s.showForm = true
+			s.taskForm = components.NewTaskForm()
 			return s, nil
-		case "d":
-			// Delete current task
-			if s.cursor < len(s.tasks) {
-				return s, s.deleteTask()
-			}
-			return s, nil
+
 		case "e":
 			// TODO: Edit task
+			if s.selectedTaskID != "" {
+				return s, nil
+			}
 			return s, nil
 		}
 
@@ -87,21 +188,37 @@ func (s *TaskScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		s.tasks = msg.tasks
 		s.loading = false
 		s.err = msg.err
-		if s.cursor >= len(s.tasks) && len(s.tasks) > 0 {
-			s.cursor = len(s.tasks) - 1
+		// Adjust cursors if needed
+		for col := ColumnTodo; col <= ColumnDone; col++ {
+			tasks := s.getTasksForColumn(col)
+			if s.cursors[col] >= len(tasks) && len(tasks) > 0 {
+				s.cursors[col] = len(tasks) - 1
+			}
 		}
 		return s, nil
 
-	case taskToggledMsg:
+	case taskCreatedMsg:
 		if msg.err != nil {
 			s.err = msg.err
 		}
-		// Reload tasks after toggle
+		// Reload tasks after creation
+		return s, s.loadTasks()
+
+	case taskMovedMsg:
+		if msg.err != nil {
+			s.err = msg.err
+		} else {
+			// Deselect after successful move
+			s.selectedTaskID = ""
+		}
+		// Reload tasks after move
 		return s, s.loadTasks()
 
 	case taskDeletedMsg:
 		if msg.err != nil {
 			s.err = msg.err
+		} else {
+			s.selectedTaskID = ""
 		}
 		// Reload tasks after delete
 		return s, s.loadTasks()
@@ -129,132 +246,205 @@ func (s *TaskScreen) View() string {
 			Render(errorMsg)
 	}
 
-	if len(s.tasks) == 0 {
-		return s.renderEmpty()
+	// Render base kanban view
+	baseView := s.renderKanban()
+
+	// If form is shown, overlay it on top
+	if s.showForm {
+		return s.overlayForm(baseView)
 	}
 
-	var lines []string
-	
-	// Section: Today
-	lines = append(lines, styles.Title.Render("Today's Tasks"))
-	lines = append(lines, "")
-	
-	todayTasks := s.filterToday()
-	if len(todayTasks) == 0 {
-		lines = append(lines, styles.Dimmed.Render("  No tasks due today"))
-	} else {
-		for i, task := range todayTasks {
-			lines = append(lines, s.renderTask(task, i == s.cursor))
-		}
-	}
-	
-	lines = append(lines, "")
-	
-	// Section: Upcoming
-	lines = append(lines, styles.Title.Render("Upcoming"))
-	lines = append(lines, "")
-	
-	upcomingTasks := s.filterUpcoming()
-	if len(upcomingTasks) == 0 {
-		lines = append(lines, styles.Dimmed.Render("  No upcoming tasks"))
-	} else {
-		for i, task := range upcomingTasks {
-			idx := len(todayTasks) + i
-			lines = append(lines, s.renderTask(task, idx == s.cursor))
-		}
-	}
-	
-	lines = append(lines, "")
-	
-	// Section: All Tasks
-	lines = append(lines, styles.Title.Render("All Tasks"))
-	lines = append(lines, "")
-	
-	for i, task := range s.tasks {
-		lines = append(lines, s.renderTask(task, i == s.cursor))
-	}
-
-	// Shortcuts
-	lines = append(lines, "")
-	lines = append(lines, s.renderShortcuts())
-
-	return strings.Join(lines, "\n")
+	return baseView
 }
 
-// renderTask renders a single task
-func (s *TaskScreen) renderTask(task models.Task, selected bool) string {
-	// Status icon
-	var icon string
-	switch task.Status {
-	case models.TaskStatusCompleted:
-		icon = "[✓]"
-	case models.TaskStatusInProgress:
-		icon = "[~]"
-	case models.TaskStatusCancelled:
-		icon = "[x]"
-	default:
-		icon = "[ ]"
+// renderKanban renders the kanban board
+func (s *TaskScreen) renderKanban() string {
+	// Get tasks for each column
+	todoTasks := s.getTasksForColumn(ColumnTodo)
+	inProgressTasks := s.getTasksForColumn(ColumnInProgress)
+	doneTasks := s.getTasksForColumn(ColumnDone)
+
+	// Calculate column width (divide available width by 3, minus borders and spacing)
+	// Add 3 extra characters per column for more width
+	columnWidth := ((s.width - 10) / 3) + 3
+	if columnWidth < 23 {
+		columnWidth = 23
 	}
 
-	// Priority indicator
-	var priorityIndicator string
-	switch task.Priority {
-	case models.TaskPriorityUrgent:
-		priorityIndicator = "!!"
-	case models.TaskPriorityHigh:
-		priorityIndicator = "! "
-	case models.TaskPriorityMedium:
-		priorityIndicator = "- "
-	case models.TaskPriorityLow:
-		priorityIndicator = "  "
+	// Render each column
+	todoColumn := s.renderColumn("To Do", todoTasks, ColumnTodo, columnWidth)
+	inProgressColumn := s.renderColumn("In Progress", inProgressTasks, ColumnInProgress, columnWidth)
+	doneColumn := s.renderColumn("Done", doneTasks, ColumnDone, columnWidth)
+
+	// Combine columns horizontally
+	kanbanBoard := lipgloss.JoinHorizontal(
+		lipgloss.Top,
+		todoColumn,
+		inProgressColumn,
+		doneColumn,
+	)
+
+	// Add shortcuts at the bottom
+	shortcuts := s.renderShortcuts()
+
+	return lipgloss.JoinVertical(
+		lipgloss.Left,
+		kanbanBoard,
+		"",
+		shortcuts,
+	)
+}
+
+// overlayForm overlays the form on top of the kanban view
+func (s *TaskScreen) overlayForm(baseView string) string {
+	// Render the form
+	formView := s.taskForm.View()
+
+	// Calculate position to center the form
+	baseWidth := s.width
+	baseHeight := s.height
+
+	// Place form using lipgloss Place
+	overlay := lipgloss.Place(
+		baseWidth,
+		baseHeight,
+		lipgloss.Center,
+		lipgloss.Center,
+		formView,
+		lipgloss.WithWhitespaceChars(""),
+	)
+
+	return overlay
+}
+
+// renderColumn renders a single kanban column
+func (s *TaskScreen) renderColumn(title string, tasks []models.Task, column Column, width int) string {
+	// Column header with count
+	headerText := fmt.Sprintf("%s (%d)", title, len(tasks))
+
+	headerStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(styles.Primary).
+		Width(width).
+		Align(lipgloss.Center)
+
+	// Highlight active column
+	columnStyle := styles.Panel.
+		Width(width).
+		Height(s.height - 8)
+
+	if s.activeColumn == column {
+		columnStyle = columnStyle.BorderForeground(styles.Primary)
+		headerStyle = headerStyle.Foreground(styles.Secondary)
 	}
 
-	// Due date
-	var dueStr string
-	if task.DueDate != nil {
-		if task.IsOverdue() {
-			dueStr = lipgloss.NewStyle().
-				Foreground(styles.Danger).
-				Render(fmt.Sprintf(" (Overdue: %s)", task.DueDate.Format("Jan 02")))
-		} else if task.IsDueToday() {
-			dueStr = lipgloss.NewStyle().
-				Foreground(styles.Warning).
-				Render(" (Due today)")
-		} else {
-			dueStr = lipgloss.NewStyle().
-				Foreground(styles.Muted).
-				Render(fmt.Sprintf(" (%s)", task.DueDate.Format("Jan 02")))
+	header := headerStyle.Render(headerText)
+
+	// Render tasks
+	var taskLines []string
+	for i, task := range tasks {
+		isSelected := task.ID == s.selectedTaskID
+		isCursor := i == s.cursors[column] && s.activeColumn == column
+		taskLine := s.renderKanbanTask(task, isSelected, isCursor)
+		taskLines = append(taskLines, taskLine)
+		
+		// Add divider after each task (except the last one)
+		if i < len(tasks)-1 {
+			divider := lipgloss.NewStyle().
+				Foreground(styles.Border).
+				Render("─────────────────────")
+			taskLines = append(taskLines, divider)
 		}
 	}
 
-	// Task title with status color
-	titleStyle := lipgloss.NewStyle().
-		Foreground(styles.StatusColor(string(task.Status)))
-	
-	if task.Status == models.TaskStatusCompleted {
-		titleStyle = titleStyle.Strikethrough(true)
+	// Empty state
+	if len(taskLines) == 0 {
+		emptyMsg := lipgloss.NewStyle().
+			Foreground(styles.Muted).
+			Italic(true).
+			Render("No tasks")
+		taskLines = append(taskLines, emptyMsg)
 	}
 
-	taskLine := fmt.Sprintf("  %s %s %s%s",
-		icon,
-		priorityIndicator,
-		titleStyle.Render(task.Title),
-		dueStr,
+	content := strings.Join(taskLines, "\n")
+
+	return lipgloss.JoinVertical(
+		lipgloss.Left,
+		header,
+		"",
+		columnStyle.Render(content),
 	)
+}
 
-	// Apply selection style
-	if selected {
-		return styles.ListItemSelected.Render(taskLine)
+// renderKanbanTask renders a single task in kanban view
+func (s *TaskScreen) renderKanbanTask(task models.Task, isSelected bool, isCursor bool) string {
+	// Priority indicator with Nerd Font icons
+	var priorityIndicator string
+
+	switch task.Priority {
+	case models.TaskPriorityUrgent:
+		priorityIndicator = ""
+	case models.TaskPriorityHigh:
+		priorityIndicator = "🔴"
+	case models.TaskPriorityMedium:
+		priorityIndicator = "💛"
+	case models.TaskPriorityLow:
+		priorityIndicator = "🤍"
 	}
-	return taskLine
+
+	// Task title
+	titleStyle := lipgloss.NewStyle()
+	if task.Status == models.TaskStatusCompleted {
+		titleStyle = titleStyle.Strikethrough(true).Foreground(styles.Muted)
+	}
+
+	title := titleStyle.Render(task.Title)
+
+	// Due date indicator with Nerd Font icons
+	var dueInfo string
+	if task.DueDate != nil {
+		if task.IsOverdue() {
+			dueInfo = lipgloss.NewStyle().
+				Foreground(styles.Danger).
+				Render("  " + task.DueDate.Format("Jan 02"))
+		} else if task.IsDueToday() {
+			dueInfo = lipgloss.NewStyle().
+				Foreground(styles.Warning).
+				Render("󰃭 Today")
+		}
+	}
+
+	taskText := fmt.Sprintf("%s %s%s", priorityIndicator, title, dueInfo)
+
+	// Apply selection/cursor styles
+	taskStyle := lipgloss.NewStyle().Padding(0, 1)
+
+	if isSelected {
+		// Selected task - highlighted background
+		taskStyle = taskStyle.
+			Background(styles.Secondary).
+			Foreground(styles.Background).
+			Bold(true)
+	} else if isCursor {
+		// Cursor position - subtle highlight
+		taskStyle = taskStyle.
+			Background(styles.BackgroundLight).
+			Foreground(styles.Foreground)
+	}
+
+	return taskStyle.Render(taskText)
 }
 
 // renderEmpty renders empty state
 func (s *TaskScreen) renderEmpty() string {
+	totalTasks := len(s.tasks)
+
 	return lipgloss.NewStyle().
 		Padding(2).
 		Render(strings.Join([]string{
 			styles.Title.Render("No tasks yet!"),
+			"",
+			styles.Dimmed.Render(fmt.Sprintf("Total tasks: %d", totalTasks)),
 			"",
 			styles.Dimmed.Render("Press 'n' to create your first task"),
 		}, "\n"))
@@ -262,61 +452,117 @@ func (s *TaskScreen) renderEmpty() string {
 
 // renderShortcuts renders keyboard shortcuts
 func (s *TaskScreen) renderShortcuts() string {
-	shortcuts := []string{
-		styles.Shortcut.Render("n") + styles.ShortcutText.Render(" new"),
-		styles.Shortcut.Render("e") + styles.ShortcutText.Render(" edit"),
-		styles.Shortcut.Render("d") + styles.ShortcutText.Render(" delete"),
-		styles.Shortcut.Render("space") + styles.ShortcutText.Render(" toggle"),
-		styles.Shortcut.Render("r") + styles.ShortcutText.Render(" refresh"),
-		styles.Shortcut.Render("j/k") + styles.ShortcutText.Render(" navigate"),
+	var shortcuts []string
+
+	if s.selectedTaskID != "" {
+		shortcuts = []string{
+			styles.Shortcut.Render("←/→") + styles.ShortcutText.Render(" move column"),
+			styles.Shortcut.Render("del") + styles.ShortcutText.Render(" delete"),
+			styles.Shortcut.Render("enter") + styles.ShortcutText.Render(" deselect"),
+		}
+	} else {
+		shortcuts = []string{
+			styles.Shortcut.Render("tab") + styles.ShortcutText.Render(" next column"),
+			styles.Shortcut.Render("enter") + styles.ShortcutText.Render(" select"),
+			styles.Shortcut.Render("j/k") + styles.ShortcutText.Render(" navigate"),
+			styles.Shortcut.Render("n") + styles.ShortcutText.Render(" new"),
+			styles.Shortcut.Render("r") + styles.ShortcutText.Render(" refresh"),
+		}
 	}
+
+	// Total count
+	totalText := fmt.Sprintf("Total: %d tasks", len(s.tasks))
+	shortcuts = append(shortcuts, styles.Dimmed.Render(totalText))
+
 	return strings.Join(shortcuts, "  ")
 }
 
-// filterToday returns tasks due today
-func (s *TaskScreen) filterToday() []models.Task {
-	var result []models.Task
+// getTasksForColumn returns tasks for a specific column
+func (s *TaskScreen) getTasksForColumn(column Column) []models.Task {
+	var tasks []models.Task
 	for _, task := range s.tasks {
-		if task.IsDueToday() && task.Status != models.TaskStatusCompleted {
-			result = append(result, task)
+		switch column {
+		case ColumnTodo:
+			if task.Status == models.TaskStatusPending {
+				tasks = append(tasks, task)
+			}
+		case ColumnInProgress:
+			if task.Status == models.TaskStatusInProgress {
+				tasks = append(tasks, task)
+			}
+		case ColumnDone:
+			if task.Status == models.TaskStatusCompleted {
+				tasks = append(tasks, task)
+			}
 		}
 	}
-	return result
+	return tasks
 }
 
-// filterUpcoming returns upcoming tasks (next 7 days)
-func (s *TaskScreen) filterUpcoming() []models.Task {
-	var result []models.Task
-	for _, task := range s.tasks {
-		if task.DueDate != nil && !task.IsDueToday() && !task.IsOverdue() && task.Status != models.TaskStatusCompleted {
-			result = append(result, task)
-		}
+// getPreviousColumn returns the previous column
+func (s *TaskScreen) getPreviousColumn() Column {
+	switch s.activeColumn {
+	case ColumnTodo:
+		return ColumnTodo // Can't go before Todo
+	case ColumnInProgress:
+		return ColumnTodo
+	case ColumnDone:
+		return ColumnInProgress
 	}
-	return result
+	return ColumnTodo
 }
 
-// toggleTask toggles task completion
-func (s *TaskScreen) toggleTask() tea.Cmd {
-	if s.cursor >= len(s.tasks) {
-		return nil
+// getNextColumn returns the next column
+func (s *TaskScreen) getNextColumn() Column {
+	switch s.activeColumn {
+	case ColumnTodo:
+		return ColumnInProgress
+	case ColumnInProgress:
+		return ColumnDone
+	case ColumnDone:
+		return ColumnDone // Can't go after Done
 	}
+	return ColumnDone
+}
 
-	taskID := s.tasks[s.cursor].ID
-
+// moveTaskToColumn moves a task to a different column (status)
+func (s *TaskScreen) moveTaskToColumn(taskID string, targetColumn Column) tea.Cmd {
 	return func() tea.Msg {
-		err := s.db.Tasks().ToggleComplete(taskID)
-		return taskToggledMsg{err: err}
+		// Find the task
+		task, err := s.db.Tasks().FindByID(taskID)
+		if err != nil {
+			return taskMovedMsg{err: err}
+		}
+
+		// Update status based on target column
+		switch targetColumn {
+		case ColumnTodo:
+			task.Status = models.TaskStatusPending
+			task.CompletedAt = nil
+		case ColumnInProgress:
+			task.Status = models.TaskStatusInProgress
+			task.CompletedAt = nil
+		case ColumnDone:
+			task.Status = models.TaskStatusCompleted
+			// CompletedAt will be set by the repository
+		}
+
+		// Save to database
+		err = s.db.Tasks().Update(task)
+		return taskMovedMsg{err: err}
 	}
 }
 
-// deleteTask deletes the current task
-func (s *TaskScreen) deleteTask() tea.Cmd {
-	if s.cursor >= len(s.tasks) {
-		return nil
+// createTask creates a new task
+func (s *TaskScreen) createTask(task *models.Task) tea.Cmd {
+	return func() tea.Msg {
+		err := s.db.Tasks().Create(task)
+		return taskCreatedMsg{err: err}
 	}
+}
 
-	taskID := s.tasks[s.cursor].ID
-
+// deleteTask deletes a task by ID
+func (s *TaskScreen) deleteTask(taskID string) tea.Cmd {
 	return func() tea.Msg {
 		err := s.db.Tasks().Delete(taskID)
 		return taskDeletedMsg{err: err}
@@ -340,7 +586,11 @@ type tasksLoadedMsg struct {
 	err   error
 }
 
-type taskToggledMsg struct {
+type taskCreatedMsg struct {
+	err error
+}
+
+type taskMovedMsg struct {
 	err error
 }
 
