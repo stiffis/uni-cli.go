@@ -28,14 +28,11 @@ A modern, beautiful Terminal User Interface (TUI) application for student organi
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/unicli.git
+git clone https://github.com/stiffis/uni-cli.go.git
 cd unicli
 
-# Build
-go build -o unicli ./cmd/unicli
-
-# Run
-./unicli
+# Build & Run
+./run.sh
 ```
 
 ### Requirements
