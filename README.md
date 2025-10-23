@@ -74,7 +74,7 @@ unicli/
 └── data/               # User data (gitignored)
 ```
 
-##  ScreenShots
+## 󰚓 ScreenShots
 
 ![UniCLI Interface](assets/welcomeview.png)
 ![Taks Management](assets/tasksview.png)
