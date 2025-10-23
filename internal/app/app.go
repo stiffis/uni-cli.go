@@ -154,8 +154,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.taskScreen, cmd = m.taskScreen.Update(msg)
 	}
 	return m, cmd
-
-	return m, nil
 }
 
 // executeCommand processes the command entered by the user
