@@ -22,6 +22,9 @@ type TaskForm struct {
 	priorities       []models.TaskPriority
 	selectedPriority int
 	
+	// Original task status (only for editing)
+	originalStatus models.TaskStatus
+
 	// Focus tracking
 	focusedField int
 	submitted    bool
@@ -66,6 +69,7 @@ func NewTaskForm(task *models.Task) TaskForm {
 	// If a task is provided, pre-fill the form fields
 	if task != nil {
 		form.taskID = task.ID
+		form.originalStatus = task.Status // Store original status
 		form.titleInput.SetValue(task.Title)
 		form.descriptionInput.SetValue(task.Description)
 		if task.DueDate != nil {
@@ -328,23 +332,26 @@ func (f TaskForm) GetTask() *models.Task {
 	}
 
 	task.Title = f.titleInput.Value()
-	task.Description = f.descriptionInput.Value()
-	task.Priority = f.priorities[f.selectedPriority]
-	task.Status = models.TaskStatusPending // Always create/edit as pending initially
-	task.UpdatedAt = time.Now()
-	
-	// Parse due date if provided
-	dueDateStr := strings.TrimSpace(f.dueDateInput.Value())
-	if dueDateStr != "" {
-		// Parse with local timezone
-		if dueDate, err := time.ParseInLocation("2006-01-02", dueDateStr, time.Local); err == nil {
-			task.DueDate = &dueDate
-		}
+			task.Description = f.descriptionInput.Value()
+			task.Priority = f.priorities[f.selectedPriority]
+			if f.taskID != "" {
+				task.Status = f.originalStatus // Preserve original status for existing tasks
+			} else {
+				task.Status = models.TaskStatusPending // Always create as pending
+			}
+			task.UpdatedAt = time.Now()
+			
+			// Parse due date if provided
+			dueDateStr := strings.TrimSpace(f.dueDateInput.Value())
+			if dueDateStr != "" {
+				// Parse with local timezone
+				if dueDate, err := time.ParseInLocation("2006-01-02", dueDateStr, time.Local); err == nil {
+					task.DueDate = &dueDate
+				}
+			}
+			
+			return task
 	}
-	
-	return task
-}
-
 // IsSubmitted returns true if form was submitted
 func (f TaskForm) IsSubmitted() bool {
 	return f.submitted
