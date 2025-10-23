@@ -522,8 +522,8 @@ func (m Model) renderWelcome() string {
 			"⠀⠀⠑⢿⡘⢿⣿⣧⠀⠀⠀⠀⠀⢿⣿⣿⣿⣿⠁⠀⠀⠀⠀⣿⣿⡟⠙⠁⡠⠂⠀",
 			"⠀⢰⣷⣄⡑⠬⣻⣿⡄⠀⠀⠀⠀⠘⣿⣿⣿⠃⠀⠀⠀⠀⣸⣿⠏⡠⢔⣡⣴⣿⡀",
 			"⢀⣿⣿⣿⣿⣦⣌⣉⣿⢄⠀⠀⠀⠀⠸⣿⡟⠀⠀⠀⡮⣽⡿⣛⣥⣾⣿⣿⣿⣿⣧",
-			"   I'm autistic, not a dumb!   ",
-			"                       -Osaka",
+			// "   I'm autistic, not a dumb!   ",
+			// "                       -Osaka",
 		}
 
 		/*
