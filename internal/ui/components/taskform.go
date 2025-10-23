@@ -336,8 +336,8 @@ func (f TaskForm) GetTask() *models.Task {
 	// Parse due date if provided
 	dueDateStr := strings.TrimSpace(f.dueDateInput.Value())
 	if dueDateStr != "" {
-		// Try parsing with YYYY-MM-DD format
-		if dueDate, err := time.Parse("2006-01-02", dueDateStr); err == nil {
+		// Parse with local timezone
+		if dueDate, err := time.ParseInLocation("2006-01-02", dueDateStr, time.Local); err == nil {
 			task.DueDate = &dueDate
 		}
 	}

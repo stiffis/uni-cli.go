@@ -375,7 +375,7 @@ func (s *TaskScreen) renderColumn(title string, tasks []models.Task, column Colu
 		isCursor := i == s.cursors[column] && s.activeColumn == column
 		taskLine := s.renderKanbanTask(task, isSelected, isCursor)
 		taskLines = append(taskLines, taskLine)
-		
+
 		// Add divider after each task (except the last one)
 		if i < len(tasks)-1 {
 			divider := lipgloss.NewStyle().
@@ -438,7 +438,11 @@ func (s *TaskScreen) renderKanbanTask(task models.Task, isSelected bool, isCurso
 		} else if task.IsDueToday() {
 			dueInfo = lipgloss.NewStyle().
 				Foreground(styles.Warning).
-				Render("󰃭 Today")
+				Render(" 󰃭 Today")
+		} else { // Not overdue and not due today, so it's in the future
+			dueInfo = lipgloss.NewStyle().
+				Foreground(styles.Success).
+				Render(" 󰃭 " + task.DueDate.Format("Jan 02"))
 		}
 	}
 
@@ -487,6 +491,7 @@ func (s *TaskScreen) renderShortcuts() string {
 			styles.Shortcut.Render("←/→") + styles.ShortcutText.Render(" move column"),
 			styles.Shortcut.Render("del") + styles.ShortcutText.Render(" delete"),
 			styles.Shortcut.Render("enter") + styles.ShortcutText.Render(" deselect"),
+			styles.Shortcut.Render("e") + styles.ShortcutText.Render(" edit"),
 		}
 	} else {
 		shortcuts = []string{

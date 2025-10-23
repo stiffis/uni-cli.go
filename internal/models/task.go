@@ -60,7 +60,10 @@ func (t *Task) IsOverdue() bool {
 	if t.DueDate == nil || t.Status == TaskStatusCompleted {
 		return false
 	}
-	return t.DueDate.Before(time.Now())
+	// Compare with the start of the current day
+	now := time.Now()
+	startOfToday := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	return t.DueDate.Before(startOfToday)
 }
 
 // IsDueToday returns true if the task is due today
