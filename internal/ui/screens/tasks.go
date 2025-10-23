@@ -69,10 +69,16 @@ func (s *TaskScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Check if form was submitted or cancelled
 		if s.taskForm.IsSubmitted() {
-			// Create the task
+			// Get the task from the form
 			task := s.taskForm.GetTask()
 			s.showForm = false
-			return s, s.createTask(task)
+
+			// If taskID is present, it's an update, otherwise it's a create
+			if task.ID != "" {
+				return s, s.updateTask(task)
+			} else {
+				return s, s.createTask(task)
+			}
 		}
 
 		if s.taskForm.IsCancelled() {
@@ -173,12 +179,24 @@ func (s *TaskScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "n":
 			// Open new task form
 			s.showForm = true
-			s.taskForm = components.NewTaskForm()
+			s.taskForm = components.NewTaskForm(nil) // Pass nil for new task
 			return s, nil
 
 		case "e":
-			// TODO: Edit task
+			// Edit selected task
 			if s.selectedTaskID != "" {
+				// Find the task to edit
+				var taskToEdit *models.Task
+				for _, t := range s.tasks {
+					if t.ID == s.selectedTaskID {
+						taskToEdit = &t
+						break
+					}
+				}
+				if taskToEdit != nil {
+					s.showForm = true
+					s.taskForm = components.NewTaskForm(taskToEdit)
+				}
 				return s, nil
 			}
 			return s, nil
@@ -202,6 +220,16 @@ func (s *TaskScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			s.err = msg.err
 		}
 		// Reload tasks after creation
+		return s, s.loadTasks()
+
+	case taskUpdatedMsg:
+		if msg.err != nil {
+			s.err = msg.err
+		} else {
+			// Deselect after successful update
+			s.selectedTaskID = ""
+		}
+		// Reload tasks after update
 		return s, s.loadTasks()
 
 	case taskMovedMsg:
@@ -569,9 +597,18 @@ func (s *TaskScreen) deleteTask(taskID string) tea.Cmd {
 	}
 }
 
+// updateTask updates an existing task
+func (s *TaskScreen) updateTask(task *models.Task) tea.Cmd {
+	return func() tea.Msg {
+		err := s.db.Tasks().Update(task)
+		return taskUpdatedMsg{err: err}
+	}
+}
+
 // loadTasks loads tasks from database
 func (s *TaskScreen) loadTasks() tea.Cmd {
 	return func() tea.Msg {
+		s.loading = true // Set loading to true before loading tasks
 		tasks, err := s.db.Tasks().FindAll()
 		if err != nil {
 			return tasksLoadedMsg{tasks: []models.Task{}, err: err}
@@ -595,5 +632,9 @@ type taskMovedMsg struct {
 }
 
 type taskDeletedMsg struct {
+	err error
+}
+
+type taskUpdatedMsg struct {
 	err error
 }

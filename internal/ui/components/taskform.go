@@ -13,6 +13,7 @@ import (
 
 // TaskForm is a form for creating/editing tasks
 type TaskForm struct {
+	taskID           string // ID of the task being edited (empty if new task)
 	titleInput       Input
 	descriptionInput TextArea
 	dueDateInput     Input
@@ -38,8 +39,8 @@ const (
 	fieldButtons
 )
 
-// NewTaskForm creates a new task form
-func NewTaskForm() TaskForm {
+// NewTaskForm creates a new task form, optionally pre-filling with existing task data
+func NewTaskForm(task *models.Task) TaskForm {
 	titleInput := NewInput("Title:", "Enter task title...")
 	descriptionInput := NewTextArea("Description:", "Enter task description...")
 	dueDateInput := NewInput("Due Date (optional):", "YYYY-MM-DD or leave empty")
@@ -60,6 +61,24 @@ func NewTaskForm() TaskForm {
 		focusedField:     fieldTitle,
 		width:            60,
 		height:           20,
+	}
+
+	// If a task is provided, pre-fill the form fields
+	if task != nil {
+		form.taskID = task.ID
+		form.titleInput.SetValue(task.Title)
+		form.descriptionInput.SetValue(task.Description)
+		if task.DueDate != nil {
+			form.dueDateInput.SetValue(task.DueDate.Format("2006-01-02"))
+		}
+		for i, p := range priorities {
+			if p == task.Priority {
+				form.selectedPriority = i
+				break
+			}
+		}
+		// Change button text to "Save" for existing tasks
+		// This will be handled in renderButtons
 	}
 
 	// Focus first field
@@ -242,7 +261,14 @@ func (f TaskForm) renderPrioritySelector() string {
 
 // renderButtons renders the action buttons
 func (f TaskForm) renderButtons() string {
-	createStyle := lipgloss.NewStyle().
+	var submitText string
+	if f.taskID != "" {
+		submitText = "[ Save ]"
+	} else {
+		submitText = "[ Create ]"
+	}
+
+	submitStyle := lipgloss.NewStyle().
 		Padding(0, 2).
 		Foreground(styles.Success)
 
@@ -251,18 +277,18 @@ func (f TaskForm) renderButtons() string {
 		Foreground(styles.Muted)
 
 	if f.focusedField == fieldButtons {
-		createStyle = createStyle.
+		submitStyle = submitStyle.
 			Background(styles.Success).
 			Foreground(styles.Background).
 			Bold(true)
 	}
 
-	create := createStyle.Render("[ Create ]")
+	submit := submitStyle.Render(submitText)
 	cancel := cancelStyle.Render("[ Cancel (Esc) ]")
 
 	return lipgloss.JoinHorizontal(
 		lipgloss.Top,
-		create,
+		submit,
 		"  ",
 		cancel,
 	)
@@ -290,11 +316,21 @@ func (f *TaskForm) focusField(field int) tea.Cmd {
 
 // GetTask returns the task from form data
 func (f TaskForm) GetTask() *models.Task {
-	task := models.NewTask(f.titleInput.Value())
+	var task *models.Task
+	if f.taskID != "" {
+		// Editing existing task
+		task = &models.Task{
+			ID: f.taskID,
+		}
+	} else {
+		// Creating new task
+		task = models.NewTask("") // Title will be set below
+	}
+
+	task.Title = f.titleInput.Value()
 	task.Description = f.descriptionInput.Value()
 	task.Priority = f.priorities[f.selectedPriority]
-	task.Status = models.TaskStatusPending // Always create as pending
-	task.CreatedAt = time.Now()
+	task.Status = models.TaskStatusPending // Always create/edit as pending initially
 	task.UpdatedAt = time.Now()
 	
 	// Parse due date if provided
@@ -304,10 +340,6 @@ func (f TaskForm) GetTask() *models.Task {
 		if dueDate, err := time.Parse("2006-01-02", dueDateStr); err == nil {
 			task.DueDate = &dueDate
 		}
-		// Could also try other formats like DD/MM/YYYY
-		// if dueDate, err := time.Parse("02/01/2006", dueDateStr); err == nil {
-		//     task.DueDate = &dueDate
-		// }
 	}
 	
 	return task
