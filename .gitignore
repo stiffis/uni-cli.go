@@ -37,3 +37,6 @@ bin/
 
 # Config (user-specific)
 config.local.yaml
+
+# Tests
+test/
