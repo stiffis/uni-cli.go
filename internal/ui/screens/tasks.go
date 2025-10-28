@@ -2,6 +2,8 @@ package screens
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -11,6 +13,16 @@ import (
 	"github.com/stiffis/UniCLI/internal/ui/components"
 	"github.com/stiffis/UniCLI/internal/ui/styles"
 )
+
+// Debug logger for task screen
+var taskScreenDebugLog *log.Logger
+
+func init() {
+	f, err := os.OpenFile("/tmp/unicli_taskscreen_debug.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err == nil {
+		taskScreenDebugLog = log.New(f, "[TASKSCREEN] ", log.Ldate|log.Ltime|log.Lshortfile)
+	}
+}
 
 // Column represents a kanban column
 type Column int
@@ -71,13 +83,23 @@ func (s *TaskScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if s.taskForm.IsSubmitted() {
 			// Get the task from the form
 			task := s.taskForm.GetTask()
+			if taskScreenDebugLog != nil {
+				taskScreenDebugLog.Printf("Form submitted! Task: ID=%s, Title='%s', IsNewTask=%v", 
+					task.ID, task.Title, s.taskForm.IsNewTask())
+			}
 			s.showForm = false
 
-			// If taskID is present, it's an update, otherwise it's a create
-			if task.ID != "" {
-				return s, s.updateTask(task)
-			} else {
+			// Check if it's a new task or editing existing
+			if s.taskForm.IsNewTask() {
+				if taskScreenDebugLog != nil {
+					taskScreenDebugLog.Printf("Creating NEW task")
+				}
 				return s, s.createTask(task)
+			} else {
+				if taskScreenDebugLog != nil {
+					taskScreenDebugLog.Printf("Updating EXISTING task")
+				}
+				return s, s.updateTask(task)
 			}
 		}
 
@@ -216,8 +238,18 @@ func (s *TaskScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return s, nil
 
 	case taskCreatedMsg:
+		if taskScreenDebugLog != nil {
+			taskScreenDebugLog.Printf("Received taskCreatedMsg: err=%v", msg.err)
+		}
 		if msg.err != nil {
 			s.err = msg.err
+			if taskScreenDebugLog != nil {
+				taskScreenDebugLog.Printf("Task creation had error: %v", msg.err)
+			}
+		} else {
+			if taskScreenDebugLog != nil {
+				taskScreenDebugLog.Printf("Task created successfully, reloading tasks...")
+			}
 		}
 		// Reload tasks after creation
 		return s, s.loadTasks()
@@ -588,8 +620,22 @@ func (s *TaskScreen) moveTaskToColumn(taskID string, targetColumn Column) tea.Cm
 
 // createTask creates a new task
 func (s *TaskScreen) createTask(task *models.Task) tea.Cmd {
+	if taskScreenDebugLog != nil {
+		taskScreenDebugLog.Printf("createTask called with: ID=%s, Title='%s', Status=%s", 
+			task.ID, task.Title, task.Status)
+	}
 	return func() tea.Msg {
+		if taskScreenDebugLog != nil {
+			taskScreenDebugLog.Printf("Calling db.Tasks().Create()...")
+		}
 		err := s.db.Tasks().Create(task)
+		if taskScreenDebugLog != nil {
+			if err != nil {
+				taskScreenDebugLog.Printf("Create FAILED: %v", err)
+			} else {
+				taskScreenDebugLog.Printf("Create SUCCESS!")
+			}
+		}
 		return taskCreatedMsg{err: err}
 	}
 }

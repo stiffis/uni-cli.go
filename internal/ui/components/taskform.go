@@ -2,6 +2,8 @@ package components
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"strings"
 	"time"
 
@@ -11,17 +13,28 @@ import (
 	"github.com/stiffis/UniCLI/internal/ui/styles"
 )
 
+// Debug logger for taskform
+var taskFormDebugLog *log.Logger
+
+func init() {
+	// Create debug log file
+	f, err := os.OpenFile("/tmp/unicli_taskform_debug.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err == nil {
+		taskFormDebugLog = log.New(f, "[TASKFORM] ", log.Ldate|log.Ltime|log.Lshortfile)
+	}
+}
+
 // TaskForm is a form for creating/editing tasks
 type TaskForm struct {
 	taskID           string // ID of the task being edited (empty if new task)
 	titleInput       Input
 	descriptionInput TextArea
 	dueDateInput     Input
-	
+
 	// Priority selector
 	priorities       []models.TaskPriority
 	selectedPriority int
-	
+
 	// Original task status (only for editing)
 	originalStatus models.TaskStatus
 
@@ -29,7 +42,7 @@ type TaskForm struct {
 	focusedField int
 	submitted    bool
 	cancelled    bool
-	
+
 	width  int
 	height int
 }
@@ -141,8 +154,19 @@ func (f TaskForm) Update(msg tea.Msg) (TaskForm, tea.Cmd) {
 		case "enter":
 			if f.focusedField == fieldButtons {
 				// Submit form
-				if f.titleInput.Value() != "" {
+				titleVal := f.titleInput.Value()
+				if taskFormDebugLog != nil {
+					taskFormDebugLog.Printf("SUBMIT: focusedField=%d, titleValue='%s'", f.focusedField, titleVal)
+				}
+				if titleVal != "" {
 					f.submitted = true
+					if taskFormDebugLog != nil {
+						taskFormDebugLog.Printf("Form submitted successfully")
+					}
+				} else {
+					if taskFormDebugLog != nil {
+						taskFormDebugLog.Printf("Title is empty, NOT submitting")
+					}
 				}
 				return f, nil
 			}
@@ -320,38 +344,54 @@ func (f *TaskForm) focusField(field int) tea.Cmd {
 
 // GetTask returns the task from form data
 func (f TaskForm) GetTask() *models.Task {
+	if taskFormDebugLog != nil {
+		taskFormDebugLog.Printf("GetTask called: taskID='%s', titleValue='%s'", f.taskID, f.titleInput.Value())
+	}
+
 	var task *models.Task
 	if f.taskID != "" {
 		// Editing existing task
 		task = &models.Task{
 			ID: f.taskID,
 		}
+		if taskFormDebugLog != nil {
+			taskFormDebugLog.Printf("Editing existing task: %s", f.taskID)
+		}
 	} else {
 		// Creating new task
 		task = models.NewTask("") // Title will be set below
+		if taskFormDebugLog != nil {
+			taskFormDebugLog.Printf("Creating NEW task with ID: %s", task.ID)
+		}
 	}
 
 	task.Title = f.titleInput.Value()
-			task.Description = f.descriptionInput.Value()
-			task.Priority = f.priorities[f.selectedPriority]
-			if f.taskID != "" {
-				task.Status = f.originalStatus // Preserve original status for existing tasks
-			} else {
-				task.Status = models.TaskStatusPending // Always create as pending
-			}
-			task.UpdatedAt = time.Now()
-			
-			// Parse due date if provided
-			dueDateStr := strings.TrimSpace(f.dueDateInput.Value())
-			if dueDateStr != "" {
-				// Parse with local timezone
-				if dueDate, err := time.ParseInLocation("2006-01-02", dueDateStr, time.Local); err == nil {
-					task.DueDate = &dueDate
-				}
-			}
-			
-			return task
+	task.Description = f.descriptionInput.Value()
+	task.Priority = f.priorities[f.selectedPriority]
+	if f.taskID != "" {
+		task.Status = f.originalStatus // Preserve original status for existing tasks
+	} else {
+		task.Status = models.TaskStatusPending // Always create as pending
 	}
+	task.UpdatedAt = time.Now()
+
+	// Parse due date if provided
+	dueDateStr := strings.TrimSpace(f.dueDateInput.Value())
+	if dueDateStr != "" {
+		// Parse with local timezone
+		if dueDate, err := time.ParseInLocation("2006-01-02", dueDateStr, time.Local); err == nil {
+			task.DueDate = &dueDate
+		}
+	}
+
+	if taskFormDebugLog != nil {
+		taskFormDebugLog.Printf("Task prepared: ID=%s, Title='%s', Status=%s, Priority=%s",
+			task.ID, task.Title, task.Status, task.Priority)
+	}
+
+	return task
+}
+
 // IsSubmitted returns true if form was submitted
 func (f TaskForm) IsSubmitted() bool {
 	return f.submitted
@@ -360,4 +400,9 @@ func (f TaskForm) IsSubmitted() bool {
 // IsCancelled returns true if form was cancelled
 func (f TaskForm) IsCancelled() bool {
 	return f.cancelled
+}
+
+// IsNewTask returns true if this is a new task (not editing existing)
+func (f TaskForm) IsNewTask() bool {
+	return f.taskID == ""
 }
