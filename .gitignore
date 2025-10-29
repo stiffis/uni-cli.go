@@ -1,5 +1,5 @@
 # Binaries
-unicli
+app
 *.exe
 *.dll
 *.so
