@@ -2,13 +2,13 @@
 # Quick script to build and run UniCLI
 
 echo "🔨 Building UniCLI..."
-go build -o unicli ./cmd/unicli
+go build -o app ./cmd/unicli
 
 if [ $? -eq 0 ]; then
     echo "✅ Build successful!"
     echo "🚀 Starting UniCLI..."
     echo ""
-    ./unicli
+    ./app
 else
     echo "❌ Build failed!"
     exit 1
