@@ -412,7 +412,7 @@ func (s *TaskScreen) renderKanbanTask(task models.Task, isSelected bool, isCurso
 
 	switch task.Priority {
 	case models.TaskPriorityUrgent:
-		priorityIndicator = ""
+		priorityIndicator = "☠️"
 	case models.TaskPriorityHigh:
 		priorityIndicator = "🔴"
 	case models.TaskPriorityMedium:
