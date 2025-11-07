@@ -34,8 +34,9 @@ type TaskScreen struct {
 	err            error
 
 	// Form state
-	showForm bool
-	taskForm components.TaskForm
+	showForm          bool
+	showDeleteConfirm bool
+	taskForm          components.TaskForm
 }
 
 // NewTaskScreen creates a new task screen
@@ -87,6 +88,25 @@ func (s *TaskScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		return s, cmd
+	}
+
+	// Handle delete confirmation
+	if s.showDeleteConfirm {
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			switch msg.String() {
+			case "y", "Y":
+				s.showDeleteConfirm = false
+				if s.selectedTaskID != "" {
+					return s, s.deleteTask(s.selectedTaskID)
+				}
+				return s, nil
+			case "n", "N", "esc":
+				s.showDeleteConfirm = false
+				return s, nil
+			}
+		}
+		return s, nil
 	}
 
 	// Normal kanban view handling
@@ -166,9 +186,9 @@ func (s *TaskScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return s, nil
 
 		case "delete", "backspace":
-			// Delete selected task
+			// Show delete confirmation
 			if s.selectedTaskID != "" {
-				return s, s.deleteTask(s.selectedTaskID)
+				s.showDeleteConfirm = true
 			}
 			return s, nil
 
@@ -283,7 +303,52 @@ func (s *TaskScreen) View() string {
 		return s.overlayForm(baseView)
 	}
 
+	// If delete confirmation is shown, overlay it
+	if s.showDeleteConfirm {
+		return s.renderDeleteConfirmDialog(baseView)
+	}
+
 	return baseView
+}
+
+// renderDeleteConfirmDialog renders the delete confirmation dialog over the base view
+func (s *TaskScreen) renderDeleteConfirmDialog(baseView string) string {
+	// Find the task to get its title
+	var taskTitle string
+	for _, task := range s.tasks {
+		if task.ID == s.selectedTaskID {
+			taskTitle = task.Title
+			break
+		}
+	}
+
+	question := fmt.Sprintf("Delete task \"%s\"?", taskTitle)
+
+	dialog := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(styles.Danger).
+		Padding(1, 2).
+		Render(lipgloss.JoinVertical(
+			lipgloss.Center,
+			styles.Title.Render(question),
+			"",
+			styles.Dimmed.Render("This action cannot be undone."),
+			"",
+			lipgloss.JoinHorizontal(
+				lipgloss.Top,
+				styles.Shortcut.Render("y") + styles.ShortcutText.Render(" delete"),
+				"  ",
+				styles.Shortcut.Render("n") + styles.ShortcutText.Render(" cancel"),
+			),
+		))
+
+	return lipgloss.Place(
+		s.width,
+		s.height,
+		lipgloss.Center,
+		lipgloss.Center,
+		dialog,
+	)
 }
 
 // renderKanban renders the kanban board
