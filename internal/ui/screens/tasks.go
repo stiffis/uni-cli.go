@@ -3,6 +3,10 @@ package screens
 import (
 	"fmt"
 	"strings"
+	"time"
+
+	"encoding/json"
+	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -31,7 +35,8 @@ type TaskScreen struct {
 	width          int
 	height         int
 	loading        bool
-	err            error
+	err         error
+	feedbackMsg string
 
 	// Form state
 	showForm          bool
@@ -192,51 +197,67 @@ func (s *TaskScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return s, nil
 
-		case "r":
-			// Refresh tasks
-			return s, s.loadTasks()
-
-		case "n":
-			// Open new task form
-			s.showForm = true
-			s.taskForm = components.NewTaskForm(nil) // Pass nil for new task
-			return s, nil
-
-		case "e":
-			// Edit selected task
-			if s.selectedTaskID != "" {
-				// Find the task to edit
-				var taskToEdit *models.Task
-				for _, t := range s.tasks {
-					if t.ID == s.selectedTaskID {
-						taskToEdit = &t
-						break
-					}
-				}
-				if taskToEdit != nil {
-					s.showForm = true
-					s.taskForm = components.NewTaskForm(taskToEdit)
-				}
-				return s, nil
-			}
-			return s, nil
-		}
-
-	case tasksLoadedMsg:
-		s.tasks = msg.tasks
-		s.loading = false
-		s.err = msg.err
-		// Adjust cursors if needed
-		for col := ColumnTodo; col <= ColumnDone; col++ {
-			tasks := s.getTasksForColumn(col)
-			if s.cursors[col] >= len(tasks) && len(tasks) > 0 {
-				s.cursors[col] = len(tasks) - 1
-			}
-		}
-		return s, nil
-
-	case taskCreatedMsg:
-		if msg.err != nil {
+		        case "r":
+		            // Refresh tasks
+		            return s, s.loadTasks()
+		
+		        case "x":
+		            // Export tasks
+		            return s, s.exportTasks()
+		        
+		        case "n":
+		            // Open new task form
+		            s.showForm = true
+		            s.taskForm = components.NewTaskForm(nil) // Pass nil for new task
+		            return s, nil
+		
+		        case "e":
+		            // Edit selected task
+		            if s.selectedTaskID != "" {
+		                // Find the task to edit
+		                var taskToEdit *models.Task
+		                for _, t := range s.tasks {
+		                    if t.ID == s.selectedTaskID {
+		                        taskToEdit = &t
+		                        break
+		                    }
+		                }
+		                if taskToEdit != nil {
+		                    s.showForm = true
+		                    s.taskForm = components.NewTaskForm(taskToEdit)
+		                }
+		                return s, nil
+		            }
+		            return s, nil
+		        }
+		
+		    case tasksLoadedMsg:
+		        s.tasks = msg.tasks
+		        s.loading = false
+		        s.err = msg.err
+		        // Adjust cursors if needed
+		        for col := ColumnTodo; col <= ColumnDone; col++ {
+		            tasks := s.getTasksForColumn(col)
+		            if s.cursors[col] >= len(tasks) && len(tasks) > 0 {
+		                s.cursors[col] = len(tasks) - 1
+		            }
+		        }
+		        return s, nil
+		
+		    	case tasksExportedMsg:
+		    		if msg.err != nil {
+		    			s.feedbackMsg = lipgloss.NewStyle().Foreground(styles.Danger).Render(fmt.Sprintf("Export failed: %v", msg.err))
+		    		} else {
+		    			s.feedbackMsg = lipgloss.NewStyle().Foreground(styles.Success).Render(fmt.Sprintf("Tasks exported to %s", msg.filename))
+		    		}
+		    		return s, tea.Tick(3*time.Second, func(t time.Time) tea.Msg {		            return clearFeedbackMsg{}
+		        })
+		
+		    case clearFeedbackMsg:
+		        s.feedbackMsg = ""
+		        return s, nil
+		
+		    case taskCreatedMsg:		if msg.err != nil {
 			s.err = msg.err
 		} else {
 		}
@@ -548,8 +569,13 @@ func (s *TaskScreen) renderEmpty() string {
 		}, "\n"))
 }
 
-// renderShortcuts renders keyboard shortcuts
+// renderShortcuts renders keyboard shortcuts or a feedback message
 func (s *TaskScreen) renderShortcuts() string {
+	// If there's a feedback message, show it instead of shortcuts
+	if s.feedbackMsg != "" {
+		return s.feedbackMsg
+	}
+
 	var shortcuts []string
 
 	if s.selectedTaskID != "" {
@@ -566,6 +592,7 @@ func (s *TaskScreen) renderShortcuts() string {
 			styles.Shortcut.Render("j/k") + styles.ShortcutText.Render(" navigate"),
 			styles.Shortcut.Render("n") + styles.ShortcutText.Render(" new"),
 			styles.Shortcut.Render("r") + styles.ShortcutText.Render(" refresh"),
+			styles.Shortcut.Render("x") + styles.ShortcutText.Render(" export"),
 		}
 	}
 
@@ -709,3 +736,37 @@ type taskDeletedMsg struct {
 type taskUpdatedMsg struct {
 	err error
 }
+
+// exportTasks exports all tasks to a JSON file
+func (s *TaskScreen) exportTasks() tea.Cmd {
+	return func() tea.Msg {
+		if len(s.tasks) == 0 {
+			return tasksExportedMsg{err: fmt.Errorf("no tasks to export")}
+		}
+
+		// Marshal the tasks to pretty-printed JSON
+		data, err := json.MarshalIndent(s.tasks, "", "  ")
+		if err != nil {
+			return tasksExportedMsg{err: err}
+		}
+
+		// Create a timestamped filename
+		filename := fmt.Sprintf("unicli_export_%s.json", time.Now().Format("20060102_150405"))
+
+		// Write the file
+		if err := os.WriteFile(filename, data, 0644); err != nil {
+			return tasksExportedMsg{err: err}
+		}
+
+		return tasksExportedMsg{filename: filename, err: nil}
+	}
+}
+
+// tasksExportedMsg is sent when tasks have been exported
+type tasksExportedMsg struct {
+	filename string
+	err      error
+}
+
+// clearFeedbackMsg is sent to clear the feedback message after a delay
+type clearFeedbackMsg struct{}

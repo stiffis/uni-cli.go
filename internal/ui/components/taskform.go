@@ -228,7 +228,7 @@ func (f TaskForm) renderPrioritySelector() string {
 
 	var options []string
 	priorityIcons := map[models.TaskPriority]string{
-		models.TaskPriorityUrgent: "",
+		models.TaskPriorityUrgent: "☠️",
 		models.TaskPriorityHigh:   "🔴",
 		models.TaskPriorityMedium: "💛",
 		models.TaskPriorityLow:    "🤍",
