@@ -35,6 +35,10 @@ var (
 	PanelFocused = Panel.Copy().
 			BorderForeground(BorderFocused)
 
+	// PanelTarget is a panel that is a move target
+	PanelTarget = Panel.Copy().
+			BorderForeground(Warning)
+
 	// Title is for panel titles
 	Title = lipgloss.NewStyle().
 		Bold(true).

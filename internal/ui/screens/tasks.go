@@ -43,6 +43,10 @@ type TaskScreen struct {
 	showDeleteConfirm bool
 	showDetails       bool
 	taskForm          components.TaskForm
+
+	// Move mode state
+	moveMode     bool
+	targetColumn Column
 }
 
 // NewTaskScreen creates a new task screen
@@ -60,6 +64,7 @@ func NewTaskScreen(db *database.DB) *TaskScreen {
 		loading:        true,
 		showForm:       false,
 		showDetails:    false,
+		moveMode:       false,
 	}
 }
 
@@ -110,6 +115,35 @@ func (s *TaskScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return s, nil
 			case "n", "N", "esc":
 				s.showDeleteConfirm = false
+				return s, nil
+			}
+		}
+		return s, nil
+	}
+
+	// Handle move mode
+	if s.moveMode {
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			switch msg.String() {
+			case "left", "h":
+				if s.targetColumn > ColumnTodo {
+					s.targetColumn--
+				}
+				return s, nil
+			case "right", "l":
+				if s.targetColumn < ColumnDone {
+					s.targetColumn++
+				}
+				return s, nil
+			case "enter":
+				s.moveMode = false
+				if s.selectedTaskID != "" {
+					return s, s.moveTaskToColumn(s.selectedTaskID, s.targetColumn)
+				}
+				return s, nil
+			case "esc", "m", "q":
+				s.moveMode = false
 				return s, nil
 			}
 		}
@@ -171,28 +205,38 @@ func (s *TaskScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return s, nil
 			}
 
-			// Otherwise, enter details view for the selected task
+			// Otherwise, enter details view for the task under the cursor
 			tasks := s.getTasksForColumn(s.activeColumn)
 			if s.cursors[s.activeColumn] < len(tasks) {
 				task := tasks[s.cursors[s.activeColumn]]
-				s.selectedTaskID = task.ID
+				s.selectedTaskID = task.ID // Select the task to show its details
 				s.showDetails = true
 			}
 			return s, nil
 
-		case "left", "h":
-			// Move selected task to previous column
-			if s.selectedTaskID != "" {
-				s.showDetails = false
-				return s, s.moveTaskToColumn(s.selectedTaskID, s.getPreviousColumn())
+		case " ": // Spacebar for selection
+			// In details or move mode, space does nothing
+			if s.showDetails || s.moveMode {
+				return s, nil
+			}
+			tasks := s.getTasksForColumn(s.activeColumn)
+			if s.cursors[s.activeColumn] < len(tasks) {
+				task := tasks[s.cursors[s.activeColumn]]
+				// If it's already selected, deselect it
+				if s.selectedTaskID == task.ID {
+					s.selectedTaskID = ""
+				} else { // Otherwise, select it
+					s.selectedTaskID = task.ID
+				}
 			}
 			return s, nil
 
-		case "right", "l":
-			// Move selected task to next column
+
+		case "m":
+			// Enter move mode
 			if s.selectedTaskID != "" {
-				s.showDetails = false
-				return s, s.moveTaskToColumn(s.selectedTaskID, s.getNextColumn())
+				s.moveMode = true
+				s.targetColumn = s.activeColumn
 			}
 			return s, nil
 
@@ -548,7 +592,11 @@ func (s *TaskScreen) renderColumn(title string, tasks []models.Task, column Colu
 		Width(width).
 		Height(s.height - 8)
 
-	if s.activeColumn == column {
+	if s.moveMode && s.targetColumn == column {
+		columnStyle = styles.PanelTarget.
+			Width(width).
+			Height(s.height - 8)
+	} else if s.activeColumn == column {
 		columnStyle = columnStyle.BorderForeground(styles.Primary)
 		headerStyle = headerStyle.Foreground(styles.Secondary)
 	}
@@ -678,21 +726,27 @@ func (s *TaskScreen) renderShortcuts() string {
 
 	var shortcuts []string
 
-	if s.showDetails {
+	if s.moveMode {
+		shortcuts = []string{
+			styles.Shortcut.Render("←/→") + styles.ShortcutText.Render(" select column"),
+			styles.Shortcut.Render("enter") + styles.ShortcutText.Render(" confirm"),
+			styles.Shortcut.Render("esc") + styles.ShortcutText.Render(" cancel"),
+		}
+	} else if s.showDetails {
 		shortcuts = []string{
 			styles.Shortcut.Render("enter") + styles.ShortcutText.Render(" close"),
-			styles.Shortcut.Render("e") + styles.ShortcutText.Render(" edit"),
-			styles.Shortcut.Render("del") + styles.ShortcutText.Render(" delete"),
 		}
 	} else if s.selectedTaskID != "" {
 		shortcuts = []string{
-			styles.Shortcut.Render("←/→") + styles.ShortcutText.Render(" move column"),
+			styles.Shortcut.Render("space") + styles.ShortcutText.Render(" deselect"),
+			styles.Shortcut.Render("m") + styles.ShortcutText.Render(" move"),
 			styles.Shortcut.Render("del") + styles.ShortcutText.Render(" delete"),
 			styles.Shortcut.Render("enter") + styles.ShortcutText.Render(" details"),
 			styles.Shortcut.Render("e") + styles.ShortcutText.Render(" edit"),
 		}
 	} else {
 		shortcuts = []string{
+			styles.Shortcut.Render("space") + styles.ShortcutText.Render(" select"),
 			styles.Shortcut.Render("tab") + styles.ShortcutText.Render(" next column"),
 			styles.Shortcut.Render("enter") + styles.ShortcutText.Render(" details"),
 			styles.Shortcut.Render("j/k") + styles.ShortcutText.Render(" navigate"),
