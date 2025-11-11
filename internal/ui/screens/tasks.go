@@ -500,9 +500,13 @@ func (s *TaskScreen) renderDetailsView() string {
 	}
 
 	// --- Layout ---
-	content := lipgloss.NewStyle().
-		Padding(2, 4).
-		Render(b.String())
+	containerStyle := styles.Panel.Copy().
+		BorderForeground(styles.Primary).
+		Width(s.width - 2).
+		Height(s.height - 8).
+		Padding(2, 4)
+
+	content := containerStyle.Render(b.String())
 
 	// Shortcuts
 	shortcuts := s.renderShortcuts()
@@ -510,7 +514,7 @@ func (s *TaskScreen) renderDetailsView() string {
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
 		content,
-		lipgloss.NewStyle().Height(s.height-lipgloss.Height(content)-lipgloss.Height(shortcuts)-1).Render(""), // Spacer
+		"", // Spacer
 		shortcuts,
 	)
 }
