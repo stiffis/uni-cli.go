@@ -41,6 +41,7 @@ type TaskScreen struct {
 	// Form state
 	showForm          bool
 	showDeleteConfirm bool
+	showDetails       bool
 	taskForm          components.TaskForm
 }
 
@@ -58,6 +59,7 @@ func NewTaskScreen(db *database.DB) *TaskScreen {
 		selectedTaskID: "",
 		loading:        true,
 		showForm:       false,
+		showDetails:    false,
 	}
 }
 
@@ -162,23 +164,26 @@ func (s *TaskScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return s, nil
 
 		case "enter":
-			// Select/deselect task
+			// If in details view, exit details view
+			if s.showDetails {
+				s.showDetails = false
+				s.selectedTaskID = ""
+				return s, nil
+			}
+
+			// Otherwise, enter details view for the selected task
 			tasks := s.getTasksForColumn(s.activeColumn)
 			if s.cursors[s.activeColumn] < len(tasks) {
 				task := tasks[s.cursors[s.activeColumn]]
-				if s.selectedTaskID == task.ID {
-					// Deselect
-					s.selectedTaskID = ""
-				} else {
-					// Select
-					s.selectedTaskID = task.ID
-				}
+				s.selectedTaskID = task.ID
+				s.showDetails = true
 			}
 			return s, nil
 
 		case "left", "h":
 			// Move selected task to previous column
 			if s.selectedTaskID != "" {
+				s.showDetails = false
 				return s, s.moveTaskToColumn(s.selectedTaskID, s.getPreviousColumn())
 			}
 			return s, nil
@@ -186,6 +191,7 @@ func (s *TaskScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "right", "l":
 			// Move selected task to next column
 			if s.selectedTaskID != "" {
+				s.showDetails = false
 				return s, s.moveTaskToColumn(s.selectedTaskID, s.getNextColumn())
 			}
 			return s, nil
@@ -265,6 +271,7 @@ func (s *TaskScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return s, s.loadTasks()
 
 	case taskUpdatedMsg:
+		s.showDetails = false
 		if msg.err != nil {
 			s.err = msg.err
 		} else {
@@ -275,6 +282,7 @@ func (s *TaskScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return s, s.loadTasks()
 
 	case taskMovedMsg:
+		s.showDetails = false
 		if msg.err != nil {
 			s.err = msg.err
 		} else {
@@ -316,20 +324,25 @@ func (s *TaskScreen) View() string {
 			Render(errorMsg)
 	}
 
-	// Render base kanban view
-	baseView := s.renderKanban()
+	// Decide which main view to render
+	var mainView string
+	if s.showDetails {
+		mainView = s.renderDetailsView()
+	} else {
+		mainView = s.renderKanban()
+	}
 
 	// If form is shown, overlay it on top
 	if s.showForm {
-		return s.overlayForm(baseView)
+		return s.overlayForm(mainView)
 	}
 
 	// If delete confirmation is shown, overlay it
 	if s.showDeleteConfirm {
-		return s.renderDeleteConfirmDialog(baseView)
+		return s.renderDeleteConfirmDialog(mainView)
 	}
 
-	return baseView
+	return mainView
 }
 
 // renderDeleteConfirmDialog renders the delete confirmation dialog over the base view
@@ -371,6 +384,93 @@ func (s *TaskScreen) renderDeleteConfirmDialog(baseView string) string {
 		dialog,
 	)
 }
+
+// getTaskByID finds a task by its ID
+func (s *TaskScreen) getTaskByID(id string) *models.Task {
+	for _, task := range s.tasks {
+		if task.ID == id {
+			return &task
+		}
+	}
+	return nil
+}
+
+// renderDetailsView renders the detailed view of a single task
+func (s *TaskScreen) renderDetailsView() string {
+	task := s.getTaskByID(s.selectedTaskID)
+	if task == nil {
+		return "Task not found."
+	}
+
+	// Styles
+	titleStyle := styles.Title.Copy().Bold(true)
+	labelStyle := lipgloss.NewStyle().Bold(true).Foreground(styles.Muted)
+	descStyle := lipgloss.NewStyle().Width(s.width - 10).Padding(0, 2)
+
+	// --- Content ---
+	var b strings.Builder
+
+	// Title
+	b.WriteString(titleStyle.Render(task.Title))
+	b.WriteString("\n\n")
+
+	// Description
+	b.WriteString(labelStyle.Render("Description"))
+	b.WriteString("\n")
+	if task.Description != "" {
+		b.WriteString(descStyle.Render(task.Description))
+	} else {
+		b.WriteString(descStyle.Render(styles.Dimmed.Render("No description.")))
+	}
+	b.WriteString("\n\n")
+
+	// Details grid
+	details := lipgloss.NewStyle().Width(s.width / 2).Render(
+		lipgloss.JoinVertical(
+			lipgloss.Left,
+			labelStyle.Render("Status")+": "+task.Status.String(),
+			labelStyle.Render("Priority")+": "+task.Priority.String(),
+		),
+	)
+	b.WriteString(details)
+	b.WriteString("\n")
+
+	// Due Date
+	if task.DueDate != nil {
+		dueStr := task.DueDate.Format("Mon, 02 Jan 2006")
+		if task.IsOverdue() {
+			dueStr += " (Overdue)"
+		}
+		b.WriteString(labelStyle.Render("Due")+": "+dueStr)
+		b.WriteString("\n")
+	}
+
+	// Tags
+	if len(task.Tags) > 0 {
+		var tagStrings []string
+		for _, tag := range task.Tags {
+			tagStrings = append(tagStrings, styles.Tag.Render(tag))
+		}
+		b.WriteString(labelStyle.Render("Tags")+": "+strings.Join(tagStrings, " "))
+		b.WriteString("\n")
+	}
+
+	// --- Layout ---
+	content := lipgloss.NewStyle().
+		Padding(2, 4).
+		Render(b.String())
+
+	// Shortcuts
+	shortcuts := s.renderShortcuts()
+
+	return lipgloss.JoinVertical(
+		lipgloss.Left,
+		content,
+		lipgloss.NewStyle().Height(s.height-lipgloss.Height(content)-lipgloss.Height(shortcuts)-1).Render(""), // Spacer
+		shortcuts,
+	)
+}
+
 
 // renderKanban renders the kanban board
 func (s *TaskScreen) renderKanban() string {
@@ -578,17 +678,23 @@ func (s *TaskScreen) renderShortcuts() string {
 
 	var shortcuts []string
 
-	if s.selectedTaskID != "" {
+	if s.showDetails {
+		shortcuts = []string{
+			styles.Shortcut.Render("enter") + styles.ShortcutText.Render(" close"),
+			styles.Shortcut.Render("e") + styles.ShortcutText.Render(" edit"),
+			styles.Shortcut.Render("del") + styles.ShortcutText.Render(" delete"),
+		}
+	} else if s.selectedTaskID != "" {
 		shortcuts = []string{
 			styles.Shortcut.Render("←/→") + styles.ShortcutText.Render(" move column"),
 			styles.Shortcut.Render("del") + styles.ShortcutText.Render(" delete"),
-			styles.Shortcut.Render("enter") + styles.ShortcutText.Render(" deselect"),
+			styles.Shortcut.Render("enter") + styles.ShortcutText.Render(" details"),
 			styles.Shortcut.Render("e") + styles.ShortcutText.Render(" edit"),
 		}
 	} else {
 		shortcuts = []string{
 			styles.Shortcut.Render("tab") + styles.ShortcutText.Render(" next column"),
-			styles.Shortcut.Render("enter") + styles.ShortcutText.Render(" select"),
+			styles.Shortcut.Render("enter") + styles.ShortcutText.Render(" details"),
 			styles.Shortcut.Render("j/k") + styles.ShortcutText.Render(" navigate"),
 			styles.Shortcut.Render("n") + styles.ShortcutText.Render(" new"),
 			styles.Shortcut.Render("r") + styles.ShortcutText.Render(" refresh"),

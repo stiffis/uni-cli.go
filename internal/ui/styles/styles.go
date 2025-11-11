@@ -86,6 +86,14 @@ var (
 	// Dimmed text
 	Dimmed = lipgloss.NewStyle().
 		Foreground(Muted)
+
+	// Tag style
+	Tag = lipgloss.NewStyle().
+		Background(Secondary).
+		Foreground(Background).
+		Padding(0, 1).
+		MarginRight(1).
+		Bold(true)
 )
 
 // Status colors for tasks

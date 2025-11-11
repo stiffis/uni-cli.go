@@ -16,6 +16,10 @@ const (
 	TaskStatusCancelled  TaskStatus = "cancelled"
 )
 
+func (s TaskStatus) String() string {
+	return string(s)
+}
+
 // TaskPriority represents the priority of a task
 type TaskPriority string
 
@@ -25,6 +29,10 @@ const (
 	TaskPriorityHigh   TaskPriority = "high"
 	TaskPriorityUrgent TaskPriority = "urgent"
 )
+
+func (p TaskPriority) String() string {
+	return string(p)
+}
 
 // Task represents a task/todo item
 type Task struct {
