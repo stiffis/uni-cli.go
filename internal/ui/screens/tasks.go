@@ -1,12 +1,12 @@
 package screens
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
+	"sort"
 	"strings"
 	"time"
-
-	"encoding/json"
-	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -285,6 +285,49 @@ func (s *TaskScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		        s.tasks = msg.tasks
 		        s.loading = false
 		        s.err = msg.err
+
+			// Sort tasks with custom logic
+			priorityMap := map[models.TaskPriority]int{
+				models.TaskPriorityUrgent: 4,
+				models.TaskPriorityHigh:   3,
+				models.TaskPriorityMedium: 2,
+				models.TaskPriorityLow:    1,
+			}
+			sort.Slice(s.tasks, func(i, j int) bool {
+				taskA := s.tasks[i]
+				taskB := s.tasks[j]
+
+				// Rule 1: Overdue status (overdue tasks first)
+				isAOverdue := taskA.IsOverdue()
+				isBOverdue := taskB.IsOverdue()
+				if isAOverdue != isBOverdue {
+					return isAOverdue
+				}
+
+				// Rule 2: Priority (higher number is higher priority)
+				priorityA := priorityMap[taskA.Priority]
+				priorityB := priorityMap[taskB.Priority]
+				if priorityA != priorityB {
+					return priorityA > priorityB
+				}
+
+				// Rule 3: Due Date (tasks with due dates first, then earlier dates first)
+				if taskA.DueDate != nil && taskB.DueDate == nil {
+					return true
+				}
+				if taskA.DueDate == nil && taskB.DueDate != nil {
+					return false
+				}
+				if taskA.DueDate != nil && taskB.DueDate != nil {
+					if !taskA.DueDate.Equal(*taskB.DueDate) {
+						return taskA.DueDate.Before(*taskB.DueDate)
+					}
+				}
+
+				// Rule 4: Creation Date (older first)
+				return taskA.CreatedAt.Before(taskB.CreatedAt)
+			})
+
 		        // Adjust cursors if needed
 		        for col := ColumnTodo; col <= ColumnDone; col++ {
 		            tasks := s.getTasksForColumn(col)
