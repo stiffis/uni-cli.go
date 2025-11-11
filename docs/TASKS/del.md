@@ -6,6 +6,6 @@ progress bar need thisto be implemented
 
 add order tasks by a parameter("numeric priority")
 
-view personalization: kanban, simple list, view by date
+view personalization: kanban, simple list
 
-filters
+filters, and view by
