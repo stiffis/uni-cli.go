@@ -47,6 +47,11 @@ type TaskScreen struct {
 	// Move mode state
 	moveMode     bool
 	targetColumn Column
+
+	// Details view state
+	subtaskCursor      int
+	isCreatingSubtask  bool
+	subtaskInput       components.Input
 }
 
 // NewTaskScreen creates a new task screen
@@ -65,6 +70,8 @@ func NewTaskScreen(db *database.DB) *TaskScreen {
 		showForm:       false,
 		showDetails:    false,
 		moveMode:       false,
+		subtaskCursor:  0,
+		isCreatingSubtask: false,
 	}
 }
 
@@ -145,6 +152,62 @@ func (s *TaskScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "esc", "m", "q":
 				s.moveMode = false
 				return s, nil
+			}
+		}
+		return s, nil
+	}
+
+	// Handle details view
+	if s.showDetails {
+		// Handle subtask creation mode
+		if s.isCreatingSubtask {
+			var cmd tea.Cmd
+			cmd = s.subtaskInput.Update(msg)
+
+			switch msg := msg.(type) {
+			case tea.KeyMsg:
+				switch msg.String() {
+				case "enter":
+					title := s.subtaskInput.Value()
+					if title != "" {
+						s.isCreatingSubtask = false
+						return s, s.createSubtask(title)
+					}
+				case "esc":
+					s.isCreatingSubtask = false
+				}
+			}
+			return s, cmd
+		}
+
+		// Handle normal details view navigation
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			switch msg.String() {
+			case "enter", "q":
+				s.showDetails = false
+				s.subtaskCursor = 0 // Reset cursor
+				return s, nil
+			case "j", "down":
+				task := s.getTaskByID(s.selectedTaskID)
+				if task != nil && s.subtaskCursor < len(task.Subtasks)-1 {
+					s.subtaskCursor++
+				}
+				return s, nil
+			case "k", "up":
+				if s.subtaskCursor > 0 {
+					s.subtaskCursor--
+				}
+				return s, nil
+			case " ":
+				task := s.getTaskByID(s.selectedTaskID)
+				if task != nil && s.subtaskCursor < len(task.Subtasks) {
+					return s, s.toggleSubtask()
+				}
+			case "t":
+				s.isCreatingSubtask = true
+				s.subtaskInput = components.NewInput("", "New subtask title...")
+				return s, s.subtaskInput.Focus()
 			}
 		}
 		return s, nil
@@ -368,6 +431,20 @@ func (s *TaskScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Reload tasks after update
 		return s, s.loadTasks()
 
+	case subtaskToggledMsg:
+		if msg.err != nil {
+			s.err = msg.err
+		}
+		// Reload tasks to reflect the change
+		return s, s.loadTasks()
+
+	case subtaskCreatedMsg:
+		if msg.err != nil {
+			s.err = msg.err
+		}
+		// Reload tasks to reflect the change
+		return s, s.loadTasks()
+
 	case taskMovedMsg:
 		s.showDetails = false
 		if msg.err != nil {
@@ -540,6 +617,36 @@ func (s *TaskScreen) renderDetailsView() string {
 		}
 		b.WriteString(labelStyle.Render("Tags")+": "+strings.Join(tagStrings, " "))
 		b.WriteString("\n")
+	}
+
+	// Subtasks
+	if len(task.Subtasks) > 0 {
+		b.WriteString("\n")
+		b.WriteString(labelStyle.Render("Checklist"))
+		b.WriteString("\n")
+		for i, st := range task.Subtasks {
+			checkbox := "[ ]"
+			if st.IsCompleted {
+				checkbox = "[x]"
+			}
+
+			subtaskStyle := lipgloss.NewStyle()
+			if i == s.subtaskCursor {
+				subtaskStyle = subtaskStyle.Foreground(styles.Primary)
+			}
+
+			title := st.Title
+			if st.IsCompleted {
+				title = lipgloss.NewStyle().Strikethrough(true).Render(title)
+			}
+
+			b.WriteString(subtaskStyle.Render(fmt.Sprintf("  %s %s\n", checkbox, title)))
+		}
+	}
+
+	// Render subtask input if creating
+	if s.isCreatingSubtask {
+		b.WriteString("\n" + s.subtaskInput.View())
 	}
 
 	// --- Layout ---
@@ -782,6 +889,9 @@ func (s *TaskScreen) renderShortcuts() string {
 	} else if s.showDetails {
 		shortcuts = []string{
 			styles.Shortcut.Render("enter") + styles.ShortcutText.Render(" close"),
+			styles.Shortcut.Render("j/k") + styles.ShortcutText.Render(" nav"),
+			styles.Shortcut.Render("space") + styles.ShortcutText.Render(" toggle"),
+			styles.Shortcut.Render("t") + styles.ShortcutText.Render(" new subtask"),
 		}
 	} else if s.selectedTaskID != "" {
 		shortcuts = []string{
@@ -896,11 +1006,38 @@ func (s *TaskScreen) createTask(task *models.Task) tea.Cmd {
 	}
 }
 
+func (s *TaskScreen) createSubtask(title string) tea.Cmd {
+	return func() tea.Msg {
+		subtask := models.Subtask{
+			TaskID:      s.selectedTaskID,
+			Title:       title,
+			IsCompleted: false,
+		}
+		err := s.db.Tasks().CreateSubtask(&subtask)
+		return subtaskCreatedMsg{err: err}
+	}
+}
+
 // deleteTask deletes a task by ID
 func (s *TaskScreen) deleteTask(taskID string) tea.Cmd {
 	return func() tea.Msg {
 		err := s.db.Tasks().Delete(taskID)
 		return taskDeletedMsg{err: err}
+	}
+}
+
+func (s *TaskScreen) toggleSubtask() tea.Cmd {
+	return func() tea.Msg {
+		task := s.getTaskByID(s.selectedTaskID)
+		if task == nil || s.subtaskCursor >= len(task.Subtasks) {
+			return subtaskToggledMsg{err: fmt.Errorf("subtask not found")}
+		}
+
+		subtask := &task.Subtasks[s.subtaskCursor]
+		subtask.IsCompleted = !subtask.IsCompleted
+
+		err := s.db.Tasks().UpdateSubtask(subtask)
+		return subtaskToggledMsg{err: err}
 	}
 }
 
@@ -928,6 +1065,14 @@ func (s *TaskScreen) loadTasks() tea.Cmd {
 type tasksLoadedMsg struct {
 	tasks []models.Task
 	err   error
+}
+
+type subtaskToggledMsg struct {
+	err error
+}
+
+type subtaskCreatedMsg struct {
+	err error
 }
 
 type taskCreatedMsg struct {

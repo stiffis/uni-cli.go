@@ -104,6 +104,13 @@ func (r *TaskRepository) FindByID(id string) (*models.Task, error) {
 	}
 	task.Tags = tags
 
+	// Load subtasks
+	subtasks, err := r.loadSubtasks(task.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load subtasks: %w", err)
+	}
+	task.Subtasks = subtasks
+
 	return task, nil
 }
 
@@ -349,6 +356,13 @@ func (r *TaskRepository) scanTasks(rows *sql.Rows) ([]models.Task, error) {
 		}
 		task.Tags = tags
 
+		// Load subtasks
+		subtasks, err := r.loadSubtasks(task.ID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load subtasks for task %s: %w", task.ID, err)
+		}
+		task.Subtasks = subtasks
+
 		tasks = append(tasks, task)
 	}
 
@@ -385,6 +399,59 @@ func (r *TaskRepository) loadTags(taskID string) ([]string, error) {
 	}
 
 	return tags, rows.Err()
+}
+
+// loadSubtasks loads subtasks for a task
+func (r *TaskRepository) loadSubtasks(taskID string) ([]models.Subtask, error) {
+	query := `
+		SELECT id, task_id, title, is_completed, created_at
+		FROM subtasks
+		WHERE task_id = ?
+		ORDER BY created_at ASC
+	`
+	rows, err := r.DB().Query(query, taskID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var subtasks []models.Subtask
+	for rows.Next() {
+		var subtask models.Subtask
+		if err := rows.Scan(&subtask.ID, &subtask.TaskID, &subtask.Title, &subtask.IsCompleted, &subtask.CreatedAt); err != nil {
+			return nil, err
+		}
+		subtasks = append(subtasks, subtask)
+	}
+	return subtasks, rows.Err()
+}
+
+// UpdateSubtask updates a subtask's completion status.
+func (r *TaskRepository) UpdateSubtask(subtask *models.Subtask) error {
+	query := `UPDATE subtasks SET is_completed = ? WHERE id = ?`
+	_, err := r.DB().Exec(query, subtask.IsCompleted, subtask.ID)
+	if err != nil {
+		return fmt.Errorf("failed to update subtask %d: %w", subtask.ID, err)
+	}
+	return nil
+}
+
+// CreateSubtask inserts a new subtask into the database.
+func (r *TaskRepository) CreateSubtask(subtask *models.Subtask) error {
+	query := `INSERT INTO subtasks (task_id, title, is_completed, created_at) VALUES (?, ?, ?, ?)`
+	subtask.CreatedAt = time.Now()
+
+	result, err := r.DB().Exec(query, subtask.TaskID, subtask.Title, subtask.IsCompleted, subtask.CreatedAt)
+	if err != nil {
+		return fmt.Errorf("failed to create subtask: %w", err)
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return fmt.Errorf("failed to get last insert ID for subtask: %w", err)
+	}
+	subtask.ID = int(id)
+	return nil
 }
 
 // updateTags updates tags for a task

@@ -43,6 +43,7 @@ type Task struct {
 	Priority    TaskPriority `json:"priority"`
 	Category    string       `json:"category"`
 	Tags        []string     `json:"tags"`
+	Subtasks    []Subtask    `json:"subtasks"`
 	DueDate     *time.Time   `json:"due_date"`
 	CreatedAt   time.Time    `json:"created_at"`
 	UpdatedAt   time.Time    `json:"updated_at"`
@@ -58,6 +59,7 @@ func NewTask(title string) *Task {
 		Status:    TaskStatusPending,
 		Priority:  TaskPriorityMedium,
 		Tags:      []string{},
+		Subtasks:  []Subtask{},
 		CreatedAt: now,
 		UpdatedAt: now,
 	}

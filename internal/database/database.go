@@ -78,6 +78,15 @@ func (db *DB) Migrate() error {
 		PRIMARY KEY (task_id, tag_id)
 	);
 
+	CREATE TABLE IF NOT EXISTS subtasks (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		task_id TEXT NOT NULL,
+		title TEXT NOT NULL,
+		is_completed BOOLEAN NOT NULL DEFAULT 0,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
+	);
+
 	CREATE TABLE IF NOT EXISTS classes (
 		id TEXT PRIMARY KEY,
 		name TEXT NOT NULL,
@@ -131,6 +140,7 @@ func (db *DB) Migrate() error {
 
 	CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 	CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);
+	CREATE INDEX IF NOT EXISTS idx_subtasks_task_id ON subtasks(task_id);
 	CREATE INDEX IF NOT EXISTS idx_events_start ON events(start_datetime);
 	`
 
