@@ -4,23 +4,24 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Colors - Zen & Friendly palette (inspired by Nord + Catppuccin)
+// Colors - Kanagawa Wave palette
 var (
-	// Main colors - Soft and calming
-	Primary   = lipgloss.Color("#88C0D0") // Soft Blue (peaceful)
-	Secondary = lipgloss.Color("#A3BE8C") // Soft Green (zen)
-	Success   = lipgloss.Color("#A3BE8C") // Soft Green
-	Warning   = lipgloss.Color("#EBCB8B") // Soft Yellow
-	Danger    = lipgloss.Color("#BF616A") // Soft Red
-	Info      = lipgloss.Color("#81A1C1") // Soft Blue-Gray
-	Muted     = lipgloss.Color("#4C566A") // Muted Gray
+	// Main colors
+	Primary   = lipgloss.Color("#7E9CD8") // crystalBlue - Functions and Titles
+	Secondary = lipgloss.Color("#98BB6C") // springGreen - Strings
+	Success   = lipgloss.Color("#76946A") // autumnGreen - Git Add
+	Warning   = lipgloss.Color("#FF9E3B") // roninYellow - Diagnostic Warning
+	Danger    = lipgloss.Color("#E82424") // samuraiRed - Diagnostic Error
+	Info      = lipgloss.Color("#6A9589") // waveAqua1 - Diagnostic Info
+	Muted     = lipgloss.Color("#727169") // fujiGray - Comments
+	AutumnYellow = lipgloss.Color("#DCA561") // Git Change - as requested by user
 	
-	// Backgrounds - Dark but warm
-	Background       = lipgloss.Color("#2E3440") // Warm dark gray
-	BackgroundLight  = lipgloss.Color("#3B4252") // Slightly lighter
-	Foreground       = lipgloss.Color("#ECEFF4") // Soft white
-	Border           = lipgloss.Color("#4C566A") // Subtle border
-	BorderFocused    = lipgloss.Color("#88C0D0") // Soft blue focus
+	// Backgrounds
+	Background       = lipgloss.Color("#1F1F28") // sumiInk1 - Default background
+	BackgroundLight  = lipgloss.Color("#2A2A37") // sumiInk2 - Lighter background
+	Foreground       = lipgloss.Color("#DCD7BA") // fujiWhite - Default foreground
+	Border           = lipgloss.Color("#54546D") // sumiInk4 - Darker foreground, float borders
+	BorderFocused    = lipgloss.Color("#7E9CD8") // crystalBlue - Same as Primary for focus
 )
 
 // Base styles

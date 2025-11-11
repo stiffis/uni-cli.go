@@ -489,6 +489,7 @@ func (s *TaskScreen) getTaskByID(id string) *models.Task {
 
 // renderProgressBar renders a progress bar
 func renderProgressBar(percentage int, width int) string {
+	width = 15 // Hardcoded width as requested
 	const filledChar = "█"
 	const emptyChar = "░"
 
@@ -532,8 +533,7 @@ func (s *TaskScreen) renderDetailsView() string {
 	// Progress Bar
 	if ratio := task.CompletionRatio(); ratio != "" {
 		percentage := task.CompletionPercentage()
-		barWidth := s.width / 3
-		progressBar := renderProgressBar(percentage, barWidth)
+		progressBar := renderProgressBar(percentage, 15) // Pass width directly
 		progressInfo := fmt.Sprintf("%s %d%% %s", progressBar, percentage, ratio)
 		b.WriteString(progressInfo)
 		b.WriteString("\n")
@@ -716,6 +716,7 @@ func (s *TaskScreen) renderColumn(title string, tasks []models.Task, column Colu
 
 	if s.moveMode && s.targetColumn == column {
 		columnStyle = styles.PanelTarget.
+			BorderForeground(styles.AutumnYellow).
 			Width(width).
 			Height(s.height - 8)
 	} else if s.activeColumn == column {
@@ -801,7 +802,7 @@ func (s *TaskScreen) renderKanbanTask(task models.Task, isSelected bool, isCurso
 				Render("  " + task.DueDate.Format("Jan 02"))
 		} else if task.IsDueToday() {
 			dueInfo = lipgloss.NewStyle().
-				Foreground(styles.Warning).
+				Foreground(styles.AutumnYellow). // Use AutumnYellow for due today
 				Render(" 󰃭 Today")
 		} else { // Not overdue and not due today, so it's in the future
 			dueInfo = lipgloss.NewStyle().
