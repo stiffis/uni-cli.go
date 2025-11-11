@@ -454,6 +454,16 @@ func (r *TaskRepository) CreateSubtask(subtask *models.Subtask) error {
 	return nil
 }
 
+// DeleteSubtask removes a subtask from the database.
+func (r *TaskRepository) DeleteSubtask(id int) error {
+	query := `DELETE FROM subtasks WHERE id = ?`
+	_, err := r.DB().Exec(query, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete subtask %d: %w", id, err)
+	}
+	return nil
+}
+
 // updateTags updates tags for a task
 func (r *TaskRepository) updateTags(taskID string, tags []string) error {
 	// Start transaction

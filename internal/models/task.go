@@ -1,6 +1,7 @@
 package models
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -85,4 +86,36 @@ func (t *Task) IsDueToday() bool {
 	return t.DueDate.Year() == now.Year() &&
 		t.DueDate.Month() == now.Month() &&
 		t.DueDate.Day() == now.Day()
+}
+
+// CompletionPercentage calculates the percentage of completed subtasks.
+func (t *Task) CompletionPercentage() int {
+	if len(t.Subtasks) == 0 {
+		return 0
+	}
+
+	completed := 0
+	for _, st := range t.Subtasks {
+		if st.IsCompleted {
+			completed++
+		}
+	}
+
+	return int(float64(completed) / float64(len(t.Subtasks)) * 100)
+}
+
+// CompletionRatio returns a string like "(3/5)" for completed subtasks.
+func (t *Task) CompletionRatio() string {
+	if len(t.Subtasks) == 0 {
+		return ""
+	}
+
+	completed := 0
+	for _, st := range t.Subtasks {
+		if st.IsCompleted {
+			completed++
+		}
+	}
+
+	return fmt.Sprintf("(%d/%d)", completed, len(t.Subtasks))
 }

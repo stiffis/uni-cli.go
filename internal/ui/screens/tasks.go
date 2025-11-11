@@ -49,9 +49,10 @@ type TaskScreen struct {
 	targetColumn Column
 
 	// Details view state
-	subtaskCursor      int
-	isCreatingSubtask  bool
-	subtaskInput       components.Input
+	subtaskCursor             int
+	isCreatingSubtask         bool
+	subtaskInput              components.Input
+	isConfirmingDeleteSubtask bool
 }
 
 // NewTaskScreen creates a new task screen
@@ -72,6 +73,7 @@ func NewTaskScreen(db *database.DB) *TaskScreen {
 		moveMode:       false,
 		subtaskCursor:  0,
 		isCreatingSubtask: false,
+		isConfirmingDeleteSubtask: false,
 	}
 }
 
@@ -157,11 +159,15 @@ func (s *TaskScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		s.feedbackMsg = ""
 		return s, nil
 
-	case taskCreatedMsg, taskUpdatedMsg, subtaskToggledMsg, subtaskCreatedMsg, taskMovedMsg, taskDeletedMsg:
-		// Generic handler for actions that require a reload
+	case subtaskToggledMsg, subtaskCreatedMsg, subtaskDeletedMsg:
+		// Handle errors, but stay in the details view
+		// The message types would need an `error` field for this to be useful
+		return s, s.loadTasks()
+
+	case taskCreatedMsg, taskUpdatedMsg, taskMovedMsg, taskDeletedMsg:
+		// These actions originate from outside the details view, so reset to kanban
 		s.showDetails = false
 		s.selectedTaskID = ""
-		// You could add specific error handling here based on the message type if needed
 		return s, s.loadTasks()
 
 	// Key presses are handled last
@@ -218,6 +224,17 @@ func (s *TaskScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		if s.showDetails {
+			if s.isConfirmingDeleteSubtask {
+				switch msg.String() {
+				case "y", "Y":
+					s.isConfirmingDeleteSubtask = false
+					return s, s.deleteSubtask()
+				case "n", "N", "esc":
+					s.isConfirmingDeleteSubtask = false
+				}
+				return s, nil
+			}
+
 			if s.isCreatingSubtask {
 				cmd = s.subtaskInput.Update(msg)
 				switch msg.String() {
@@ -255,6 +272,11 @@ func (s *TaskScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				s.isCreatingSubtask = true
 				s.subtaskInput = components.NewInput("", "New subtask title...")
 				return s, s.subtaskInput.Focus()
+			case "d", "delete":
+				task := s.getTaskByID(s.selectedTaskID)
+				if task != nil && len(task.Subtasks) > 0 {
+					s.isConfirmingDeleteSubtask = true
+				}
 			}
 			return s, nil
 		}
@@ -372,7 +394,47 @@ func (s *TaskScreen) View() string {
 		return s.renderDeleteConfirmDialog(mainView)
 	}
 
+	// If subtask delete confirmation is shown, overlay it
+	if s.isConfirmingDeleteSubtask {
+		return s.renderSubtaskDeleteConfirmDialog(mainView)
+	}
+
 	return mainView
+}
+
+// renderSubtaskDeleteConfirmDialog renders the subtask delete confirmation dialog
+func (s *TaskScreen) renderSubtaskDeleteConfirmDialog(baseView string) string {
+	task := s.getTaskByID(s.selectedTaskID)
+	if task == nil || s.subtaskCursor >= len(task.Subtasks) {
+		return baseView // Should not happen
+	}
+	subtaskTitle := task.Subtasks[s.subtaskCursor].Title
+
+	question := fmt.Sprintf("Delete subtask \"%s\"?", subtaskTitle)
+
+	dialog := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(styles.Danger).
+		Padding(1, 2).
+		Render(lipgloss.JoinVertical(
+			lipgloss.Center,
+			styles.Title.Render(question),
+			"",
+			lipgloss.JoinHorizontal(
+				lipgloss.Top,
+				styles.Shortcut.Render("y") + styles.ShortcutText.Render(" delete"),
+				"  ",
+				styles.Shortcut.Render("n") + styles.ShortcutText.Render(" cancel"),
+			),
+		))
+
+	return lipgloss.Place(
+		s.width,
+		s.height,
+		lipgloss.Center,
+		lipgloss.Center,
+		dialog,
+	)
 }
 
 // renderDeleteConfirmDialog renders the delete confirmation dialog over the base view
@@ -417,12 +479,35 @@ func (s *TaskScreen) renderDeleteConfirmDialog(baseView string) string {
 
 // getTaskByID finds a task by its ID
 func (s *TaskScreen) getTaskByID(id string) *models.Task {
-	for _, task := range s.tasks {
-		if task.ID == id {
-			return &task
+	for i := range s.tasks {
+		if s.tasks[i].ID == id {
+			return &s.tasks[i]
 		}
 	}
 	return nil
+}
+
+// renderProgressBar renders a progress bar
+func renderProgressBar(percentage int, width int) string {
+	const filledChar = "█"
+	const emptyChar = "░"
+
+	filledCount := (width * percentage) / 100
+	emptyCount := width - filledCount
+
+	var barColor lipgloss.Style
+	if percentage < 30 {
+		barColor = lipgloss.NewStyle().Foreground(styles.Danger)
+	} else if percentage < 70 {
+		barColor = lipgloss.NewStyle().Foreground(styles.Warning)
+	} else {
+		barColor = lipgloss.NewStyle().Foreground(styles.Success)
+	}
+
+	filled := barColor.Render(strings.Repeat(filledChar, filledCount))
+	empty := lipgloss.NewStyle().Foreground(styles.Muted).Render(strings.Repeat(emptyChar, emptyCount))
+
+	return filled + empty
 }
 
 // renderDetailsView renders the detailed view of a single task
@@ -442,7 +527,19 @@ func (s *TaskScreen) renderDetailsView() string {
 
 	// Title
 	b.WriteString(titleStyle.Render(task.Title))
-	b.WriteString("\n\n")
+	b.WriteString("\n")
+
+	// Progress Bar
+	if ratio := task.CompletionRatio(); ratio != "" {
+		percentage := task.CompletionPercentage()
+		barWidth := s.width / 3
+		progressBar := renderProgressBar(percentage, barWidth)
+		progressInfo := fmt.Sprintf("%s %d%% %s", progressBar, percentage, ratio)
+		b.WriteString(progressInfo)
+		b.WriteString("\n")
+	}
+
+	b.WriteString("\n")
 
 	// Description
 	b.WriteString(labelStyle.Render("Description"))
@@ -688,6 +785,13 @@ func (s *TaskScreen) renderKanbanTask(task models.Task, isSelected bool, isCurso
 
 	title := titleStyle.Render(task.Title)
 
+	// Subtask progress indicator
+	var progressIndicator string
+	if ratio := task.CompletionRatio(); ratio != "" {
+		style := lipgloss.NewStyle().Foreground(styles.Warning)
+		progressIndicator = style.Render(fmt.Sprintf("  %s", ratio)) //  is nf-oct-tasklist
+	}
+
 	// Due date indicator with Nerd Font icons
 	var dueInfo string
 	if task.DueDate != nil {
@@ -706,7 +810,7 @@ func (s *TaskScreen) renderKanbanTask(task models.Task, isSelected bool, isCurso
 		}
 	}
 
-	taskText := fmt.Sprintf("%s %s%s", priorityIndicator, title, dueInfo)
+	taskText := fmt.Sprintf("%s %s%s%s", priorityIndicator, title, progressIndicator, dueInfo)
 
 	// Apply selection/cursor styles
 	taskStyle := lipgloss.NewStyle().Padding(0, 1)
@@ -763,6 +867,7 @@ func (s *TaskScreen) renderShortcuts() string {
 			styles.Shortcut.Render("j/k") + styles.ShortcutText.Render(" nav"),
 			styles.Shortcut.Render("space") + styles.ShortcutText.Render(" toggle"),
 			styles.Shortcut.Render("t") + styles.ShortcutText.Render(" new subtask"),
+			styles.Shortcut.Render("d") + styles.ShortcutText.Render(" delete"),
 		}
 	} else if s.selectedTaskID != "" {
 		shortcuts = []string{
@@ -897,6 +1002,18 @@ func (s *TaskScreen) deleteTask(taskID string) tea.Cmd {
 	}
 }
 
+func (s *TaskScreen) deleteSubtask() tea.Cmd {
+	return func() tea.Msg {
+		task := s.getTaskByID(s.selectedTaskID)
+		if task == nil || s.subtaskCursor >= len(task.Subtasks) {
+			return subtaskDeletedMsg{err: fmt.Errorf("subtask not found")}
+		}
+		subtaskID := task.Subtasks[s.subtaskCursor].ID
+		err := s.db.Tasks().DeleteSubtask(subtaskID)
+		return subtaskDeletedMsg{err: err}
+	}
+}
+
 func (s *TaskScreen) toggleSubtask() tea.Cmd {
 	return func() tea.Msg {
 		task := s.getTaskByID(s.selectedTaskID)
@@ -943,6 +1060,10 @@ type subtaskToggledMsg struct {
 }
 
 type subtaskCreatedMsg struct {
+	err error
+}
+
+type subtaskDeletedMsg struct {
 	err error
 }
 
