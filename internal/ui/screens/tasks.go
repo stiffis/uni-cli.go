@@ -596,11 +596,13 @@ func (s *TaskScreen) renderShortcuts() string {
 		}
 	}
 
+	shortcutLine := strings.Join(shortcuts, "  ")
+
 	// Total count
 	totalText := fmt.Sprintf("Total: %d tasks", len(s.tasks))
-	shortcuts = append(shortcuts, styles.Dimmed.Render(totalText))
+	totalLine := styles.Dimmed.Render(totalText)
 
-	return strings.Join(shortcuts, "  ")
+	return lipgloss.JoinVertical(lipgloss.Left, shortcutLine, totalLine)
 }
 
 // getTasksForColumn returns tasks for a specific column
