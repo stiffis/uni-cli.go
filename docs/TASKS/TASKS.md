@@ -1,34 +1,6 @@
 
 ## 🚀 Mejoras y extensiones sugeridas
 
-### 🏷️ 1. **Etiquetas (tags o categorías)**
-
-Permite agrupar tareas por materia o tipo:
-
-```
-📘 #calculus
-📙 #discretemath
-📗 #personal
-```
-
-Así puedes filtrar (`/tag calculus`) o crear vistas por curso.
-
-💡 *Integración futura:* conectar etiquetas con la sección **Classes**.
-
----
-
-### 🧠 2. **Nivel de prioridad numérico**
-
-Además de los iconos de color, podrías guardar internamente un campo `priority` (1–3) o `urgency` calculado según fecha límite + prioridad.
-Ejemplo de visual:
-
-```
-🔥 P1  Submit report
-⭐ P2  Read paper
-```
-
----
-
 ### 💬 5. **Descripción o subtareas**
 
 Posibilidad de expandir una tarea para ver detalles:
