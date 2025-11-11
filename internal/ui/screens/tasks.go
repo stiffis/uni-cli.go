@@ -82,90 +82,144 @@ func (s *TaskScreen) Init() tea.Cmd {
 
 // Update handles messages
 func (s *TaskScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// If form is shown, handle form updates
-	if s.showForm {
-		var cmd tea.Cmd
-		s.taskForm, cmd = s.taskForm.Update(msg)
+	var cmd tea.Cmd
 
-		// Check if form was submitted or cancelled
-		if s.taskForm.IsSubmitted() {
-			// Get the task from the form
-			task := s.taskForm.GetTask()
-			s.showForm = false
+	// Top-level message handling
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		s.width = msg.Width
+		s.height = msg.Height
+		return s, nil
 
-			// Check if it's a new task or editing existing
-			if s.taskForm.IsNewTask() {
-				return s, s.createTask(task)
-			} else {
-				return s, s.updateTask(task)
+	// Command-related messages
+	case tasksLoadedMsg:
+		s.tasks = msg.tasks
+		s.loading = false
+		s.err = msg.err
+
+					// Sort tasks with custom logic
+					priorityMap := map[models.TaskPriority]int{
+						models.TaskPriorityUrgent: 4,
+						models.TaskPriorityHigh:   3,
+						models.TaskPriorityMedium: 2,
+						models.TaskPriorityLow:    1,
+					}
+					sort.Slice(s.tasks, func(i, j int) bool {
+						taskA := s.tasks[i]
+						taskB := s.tasks[j]
+		
+						// Rule 1: Overdue status
+						if isAOverdue := taskA.IsOverdue(); isAOverdue != taskB.IsOverdue() {
+							return isAOverdue
+						}
+		
+						// Rule 2: Priority
+						priorityA := priorityMap[taskA.Priority]
+						priorityB := priorityMap[taskB.Priority]
+						if priorityA != priorityB {
+							return priorityA > priorityB
+						}
+		
+						// Rule 3: Due Date
+						if taskA.DueDate != nil && taskB.DueDate == nil {
+							return true
+						}
+						if taskA.DueDate == nil && taskB.DueDate != nil {
+							return false
+						}
+						if taskA.DueDate != nil && taskB.DueDate != nil {
+							if !taskA.DueDate.Equal(*taskB.DueDate) {
+								return taskA.DueDate.Before(*taskB.DueDate)
+							}
+						}
+		
+						// Rule 4: Creation Date
+						return taskA.CreatedAt.Before(taskB.CreatedAt)
+					})
+		// Adjust cursors if needed
+		for col := ColumnTodo; col <= ColumnDone; col++ {
+			tasks := s.getTasksForColumn(col)
+			if s.cursors[col] >= len(tasks) && len(tasks) > 0 {
+				s.cursors[col] = len(tasks) - 1
 			}
 		}
+		return s, nil
 
-		if s.taskForm.IsCancelled() {
-			s.showForm = false
-			return s, nil
+	case tasksExportedMsg:
+		if msg.err != nil {
+			s.feedbackMsg = lipgloss.NewStyle().Foreground(styles.Danger).Render(fmt.Sprintf("Export failed: %v", msg.err))
+		} else {
+			s.feedbackMsg = lipgloss.NewStyle().Foreground(styles.Success).Render(fmt.Sprintf("Tasks exported to %s", msg.filename))
+		}
+		return s, tea.Tick(3*time.Second, func(t time.Time) tea.Msg { return clearFeedbackMsg{} })
+
+	case clearFeedbackMsg:
+		s.feedbackMsg = ""
+		return s, nil
+
+	case taskCreatedMsg, taskUpdatedMsg, subtaskToggledMsg, subtaskCreatedMsg, taskMovedMsg, taskDeletedMsg:
+		// Generic handler for actions that require a reload
+		s.showDetails = false
+		s.selectedTaskID = ""
+		// You could add specific error handling here based on the message type if needed
+		return s, s.loadTasks()
+
+	// Key presses are handled last
+	case tea.KeyMsg:
+		// If a modal/overlay is active, it gets priority
+		if s.showForm {
+			s.taskForm, cmd = s.taskForm.Update(msg)
+			if s.taskForm.IsSubmitted() {
+				task := s.taskForm.GetTask()
+				s.showForm = false
+				if s.taskForm.IsNewTask() {
+					return s, s.createTask(task)
+				} else {
+					return s, s.updateTask(task)
+				}
+			} else if s.taskForm.IsCancelled() {
+				s.showForm = false
+			}
+			return s, cmd
 		}
 
-		return s, cmd
-	}
-
-	// Handle delete confirmation
-	if s.showDeleteConfirm {
-		switch msg := msg.(type) {
-		case tea.KeyMsg:
+		if s.showDeleteConfirm {
 			switch msg.String() {
 			case "y", "Y":
 				s.showDeleteConfirm = false
 				if s.selectedTaskID != "" {
 					return s, s.deleteTask(s.selectedTaskID)
 				}
-				return s, nil
 			case "n", "N", "esc":
 				s.showDeleteConfirm = false
-				return s, nil
 			}
+			return s, nil
 		}
-		return s, nil
-	}
 
-	// Handle move mode
-	if s.moveMode {
-		switch msg := msg.(type) {
-		case tea.KeyMsg:
+		if s.moveMode {
 			switch msg.String() {
 			case "left", "h":
 				if s.targetColumn > ColumnTodo {
 					s.targetColumn--
 				}
-				return s, nil
 			case "right", "l":
 				if s.targetColumn < ColumnDone {
 					s.targetColumn++
 				}
-				return s, nil
 			case "enter":
 				s.moveMode = false
 				if s.selectedTaskID != "" {
 					return s, s.moveTaskToColumn(s.selectedTaskID, s.targetColumn)
 				}
-				return s, nil
 			case "esc", "m", "q":
 				s.moveMode = false
-				return s, nil
 			}
+			return s, nil
 		}
-		return s, nil
-	}
 
-	// Handle details view
-	if s.showDetails {
-		// Handle subtask creation mode
-		if s.isCreatingSubtask {
-			var cmd tea.Cmd
-			cmd = s.subtaskInput.Update(msg)
-
-			switch msg := msg.(type) {
-			case tea.KeyMsg:
+		if s.showDetails {
+			if s.isCreatingSubtask {
+				cmd = s.subtaskInput.Update(msg)
 				switch msg.String() {
 				case "enter":
 					title := s.subtaskInput.Value()
@@ -176,29 +230,22 @@ func (s *TaskScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				case "esc":
 					s.isCreatingSubtask = false
 				}
+				return s, cmd
 			}
-			return s, cmd
-		}
 
-		// Handle normal details view navigation
-		switch msg := msg.(type) {
-		case tea.KeyMsg:
 			switch msg.String() {
 			case "enter", "q":
 				s.showDetails = false
-				s.subtaskCursor = 0 // Reset cursor
-				return s, nil
+				s.subtaskCursor = 0
 			case "j", "down":
 				task := s.getTaskByID(s.selectedTaskID)
 				if task != nil && s.subtaskCursor < len(task.Subtasks)-1 {
 					s.subtaskCursor++
 				}
-				return s, nil
 			case "k", "up":
 				if s.subtaskCursor > 0 {
 					s.subtaskCursor--
 				}
-				return s, nil
 			case " ":
 				task := s.getTaskByID(s.selectedTaskID)
 				if task != nil && s.subtaskCursor < len(task.Subtasks) {
@@ -209,261 +256,80 @@ func (s *TaskScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				s.subtaskInput = components.NewInput("", "New subtask title...")
 				return s, s.subtaskInput.Focus()
 			}
+			return s, nil
 		}
-		return s, nil
-	}
 
-	// Normal kanban view handling
-	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		s.width = msg.Width
-		s.height = msg.Height
-		return s, nil
-
-	case tea.KeyMsg:
+		// If no modal is active, handle main kanban view keys
 		switch msg.String() {
 		case "tab":
-			// Move to next column
 			s.activeColumn = (s.activeColumn + 1) % 3
-			return s, nil
-
 		case "shift+tab":
-			// Move to previous column
 			s.activeColumn = (s.activeColumn + 2) % 3
-			return s, nil
-
 		case "j", "down":
-			// Move cursor down in current column
 			tasks := s.getTasksForColumn(s.activeColumn)
 			if s.cursors[s.activeColumn] < len(tasks)-1 {
 				s.cursors[s.activeColumn]++
 			}
-			return s, nil
-
 		case "k", "up":
-			// Move cursor up in current column
 			if s.cursors[s.activeColumn] > 0 {
 				s.cursors[s.activeColumn]--
 			}
-			return s, nil
-
 		case "g":
-			// Go to top of column
 			s.cursors[s.activeColumn] = 0
-			return s, nil
-
 		case "G":
-			// Go to bottom of column
 			tasks := s.getTasksForColumn(s.activeColumn)
 			if len(tasks) > 0 {
 				s.cursors[s.activeColumn] = len(tasks) - 1
 			}
-			return s, nil
-
 		case "enter":
-			// If in details view, exit details view
-			if s.showDetails {
-				s.showDetails = false
-				s.selectedTaskID = ""
-				return s, nil
-			}
-
-			// Otherwise, enter details view for the task under the cursor
 			tasks := s.getTasksForColumn(s.activeColumn)
 			if s.cursors[s.activeColumn] < len(tasks) {
 				task := tasks[s.cursors[s.activeColumn]]
-				s.selectedTaskID = task.ID // Select the task to show its details
+				s.selectedTaskID = task.ID
 				s.showDetails = true
 			}
-			return s, nil
-
-		case " ": // Spacebar for selection
-			// In details or move mode, space does nothing
-			if s.showDetails || s.moveMode {
-				return s, nil
-			}
+		case " ":
 			tasks := s.getTasksForColumn(s.activeColumn)
 			if s.cursors[s.activeColumn] < len(tasks) {
 				task := tasks[s.cursors[s.activeColumn]]
-				// If it's already selected, deselect it
 				if s.selectedTaskID == task.ID {
 					s.selectedTaskID = ""
-				} else { // Otherwise, select it
+				} else {
 					s.selectedTaskID = task.ID
 				}
 			}
-			return s, nil
-
-
 		case "m":
-			// Enter move mode
 			if s.selectedTaskID != "" {
 				s.moveMode = true
 				s.targetColumn = s.activeColumn
 			}
-			return s, nil
-
 		case "delete", "backspace":
-			// Show delete confirmation
 			if s.selectedTaskID != "" {
 				s.showDeleteConfirm = true
 			}
+		case "r":
+			return s, s.loadTasks()
+		case "x":
+			return s, s.exportTasks()
+		case "n":
+			s.showForm = true
+			s.taskForm = components.NewTaskForm(nil)
 			return s, nil
-
-		        case "r":
-		            // Refresh tasks
-		            return s, s.loadTasks()
-		
-		        case "x":
-		            // Export tasks
-		            return s, s.exportTasks()
-		        
-		        case "n":
-		            // Open new task form
-		            s.showForm = true
-		            s.taskForm = components.NewTaskForm(nil) // Pass nil for new task
-		            return s, nil
-		
-		        case "e":
-		            // Edit selected task
-		            if s.selectedTaskID != "" {
-		                // Find the task to edit
-		                var taskToEdit *models.Task
-		                for _, t := range s.tasks {
-		                    if t.ID == s.selectedTaskID {
-		                        taskToEdit = &t
-		                        break
-		                    }
-		                }
-		                if taskToEdit != nil {
-		                    s.showForm = true
-		                    s.taskForm = components.NewTaskForm(taskToEdit)
-		                }
-		                return s, nil
-		            }
-		            return s, nil
-		        }
-		
-		    case tasksLoadedMsg:
-		        s.tasks = msg.tasks
-		        s.loading = false
-		        s.err = msg.err
-
-			// Sort tasks with custom logic
-			priorityMap := map[models.TaskPriority]int{
-				models.TaskPriorityUrgent: 4,
-				models.TaskPriorityHigh:   3,
-				models.TaskPriorityMedium: 2,
-				models.TaskPriorityLow:    1,
-			}
-			sort.Slice(s.tasks, func(i, j int) bool {
-				taskA := s.tasks[i]
-				taskB := s.tasks[j]
-
-				// Rule 1: Overdue status (overdue tasks first)
-				isAOverdue := taskA.IsOverdue()
-				isBOverdue := taskB.IsOverdue()
-				if isAOverdue != isBOverdue {
-					return isAOverdue
-				}
-
-				// Rule 2: Priority (higher number is higher priority)
-				priorityA := priorityMap[taskA.Priority]
-				priorityB := priorityMap[taskB.Priority]
-				if priorityA != priorityB {
-					return priorityA > priorityB
-				}
-
-				// Rule 3: Due Date (tasks with due dates first, then earlier dates first)
-				if taskA.DueDate != nil && taskB.DueDate == nil {
-					return true
-				}
-				if taskA.DueDate == nil && taskB.DueDate != nil {
-					return false
-				}
-				if taskA.DueDate != nil && taskB.DueDate != nil {
-					if !taskA.DueDate.Equal(*taskB.DueDate) {
-						return taskA.DueDate.Before(*taskB.DueDate)
+		case "e":
+			if s.selectedTaskID != "" {
+				var taskToEdit *models.Task
+				for _, t := range s.tasks {
+					if t.ID == s.selectedTaskID {
+						taskToEdit = &t
+						break
 					}
 				}
-
-				// Rule 4: Creation Date (older first)
-				return taskA.CreatedAt.Before(taskB.CreatedAt)
-			})
-
-		        // Adjust cursors if needed
-		        for col := ColumnTodo; col <= ColumnDone; col++ {
-		            tasks := s.getTasksForColumn(col)
-		            if s.cursors[col] >= len(tasks) && len(tasks) > 0 {
-		                s.cursors[col] = len(tasks) - 1
-		            }
-		        }
-		        return s, nil
-		
-		    	case tasksExportedMsg:
-		    		if msg.err != nil {
-		    			s.feedbackMsg = lipgloss.NewStyle().Foreground(styles.Danger).Render(fmt.Sprintf("Export failed: %v", msg.err))
-		    		} else {
-		    			s.feedbackMsg = lipgloss.NewStyle().Foreground(styles.Success).Render(fmt.Sprintf("Tasks exported to %s", msg.filename))
-		    		}
-		    		return s, tea.Tick(3*time.Second, func(t time.Time) tea.Msg {		            return clearFeedbackMsg{}
-		        })
-		
-		    case clearFeedbackMsg:
-		        s.feedbackMsg = ""
-		        return s, nil
-		
-		    case taskCreatedMsg:		if msg.err != nil {
-			s.err = msg.err
-		} else {
+				if taskToEdit != nil {
+					s.showForm = true
+					s.taskForm = components.NewTaskForm(taskToEdit)
+				}
+			}
 		}
-		// Reload tasks after creation
-		return s, s.loadTasks()
-
-	case taskUpdatedMsg:
-		s.showDetails = false
-		if msg.err != nil {
-			s.err = msg.err
-		} else {
-			// Deselect after successful update
-			s.selectedTaskID = ""
-		}
-		// Reload tasks after update
-		return s, s.loadTasks()
-
-	case subtaskToggledMsg:
-		if msg.err != nil {
-			s.err = msg.err
-		}
-		// Reload tasks to reflect the change
-		return s, s.loadTasks()
-
-	case subtaskCreatedMsg:
-		if msg.err != nil {
-			s.err = msg.err
-		}
-		// Reload tasks to reflect the change
-		return s, s.loadTasks()
-
-	case taskMovedMsg:
-		s.showDetails = false
-		if msg.err != nil {
-			s.err = msg.err
-		} else {
-			// Deselect after successful move
-			s.selectedTaskID = ""
-		}
-		// Reload tasks after move
-		return s, s.loadTasks()
-
-	case taskDeletedMsg:
-		if msg.err != nil {
-			s.err = msg.err
-		} else {
-			s.selectedTaskID = ""
-		}
-		// Reload tasks after delete
-		return s, s.loadTasks()
 	}
 
 	return s, nil
@@ -630,17 +496,22 @@ func (s *TaskScreen) renderDetailsView() string {
 				checkbox = "[x]"
 			}
 
-			subtaskStyle := lipgloss.NewStyle()
-			if i == s.subtaskCursor {
-				subtaskStyle = subtaskStyle.Foreground(styles.Primary)
-			}
-
-			title := st.Title
+			// Compose styles
+			lineStyle := lipgloss.NewStyle()
 			if st.IsCompleted {
-				title = lipgloss.NewStyle().Strikethrough(true).Render(title)
+				lineStyle = lineStyle.Strikethrough(true).Foreground(styles.Muted)
+			}
+			if i == s.subtaskCursor {
+				// Cursor style overrides others unless it's complete
+				if st.IsCompleted {
+					lineStyle = lineStyle.Foreground(styles.Primary).Bold(true).Strikethrough(true)
+				} else {
+					lineStyle = lineStyle.Foreground(styles.Primary).Bold(true)
+				}
 			}
 
-			b.WriteString(subtaskStyle.Render(fmt.Sprintf("  %s %s\n", checkbox, title)))
+			line := fmt.Sprintf("  %s %s", checkbox, st.Title)
+			b.WriteString(lineStyle.Render(line) + "\n")
 		}
 	}
 
