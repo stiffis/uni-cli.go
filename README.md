@@ -1,26 +1,40 @@
-# 🎓 UniCLI - Student Organization TUI - In Development
+# 🎓 UniCLI - Student Organization TUI
 
-A modern, beautiful Terminal User Interface (TUI) application for student organization and productivity. Built with Go and Bubble Tea, inspired by lazygit's intuitive design.
+A modern, beautiful Terminal User Interface (TUI) application for student organization and productivity. Built with Go and Bubble Tea.
+
+**Note: This project is currently in active development.**
+
 
 ## ✨ Features
 
 ### Core Functionality
 
-- 📋 **Task Management**: Create, edit, complete, and organize tasks with priorities and deadlines
-- 📅 **Calendar View**: Monthly and weekly calendar with all your events and deadlines
-- 🎒 **Class Schedule**: Weekly timetable with class information and locations
-- 📊 **Grade Tracking**: Record grades and automatically calculate averages
-- 📝 **Quick Notes**: Markdown-based notes with tags
-- ⏱️ **Pomodoro Timer**: Built-in focus timer
-- 📈 **Statistics**: Visual insights into your productivity
+- 📋 **Task Management**: Create, edit, and organize tasks with priorities, due dates, and categories.
+- 🏷️ **Tags & Subtasks**: Organize tasks with tags and break them down with subtasks.
+- 🎒 **Class Management**: Keep track of your classes, professors, and rooms.
+- 🗓️ **Class Schedule**: Manage your weekly class schedule.
+- 📊 **Grade Tracking**: Record grades for your classes and track your performance.
+- 📅 **Events**: Keep track of important events and deadlines.
+- 📝 **Notes**: Create and manage notes.
 
 ### UI Features
 
-- Beautiful multi-panel interface inspired by lazygit
-- Intuitive keyboard navigation
-- Customizable color themes
-- Real-time updates
-- Context-sensitive help
+- Beautiful multi-panel interface.
+- Intuitive keyboard navigation.
+- Customizable color themes.
+- Real-time updates.
+- Context-sensitive help.
+
+## 🚧 Development Progress
+
+- [x] Task Management
+- [x] Tags & Subtasks
+- [ ] Class Management
+- [ ] Class Schedule
+- [ ] Grade Tracking
+- [ ] Events
+- [ ] Notes
+
 
 ## 🚀 Quick Start
 
@@ -29,7 +43,7 @@ A modern, beautiful Terminal User Interface (TUI) application for student organi
 ```bash
 # Clone the repository
 git clone https://github.com/stiffis/uni-cli.go.git
-cd unicli
+cd uni-cli.go
 
 # Build & Run
 ./run.sh
@@ -65,11 +79,12 @@ unicli/
 │   ├── ui/             # UI components and screens
 │   ├── models/         # Data models
 │   ├── services/       # Business logic
-│   ├── database/       # Database layer
+│   ├── database/       # Database layer (including schema and repositories)
 │   └── config/         # Configuration
 ├── pkg/                # Reusable packages
-└── data/               # User data (gitignored)
+└── assets/             # Screenshots
 ```
+*User data is stored in `~/.unicli/unicli.db`.*
 
 ## 󰚓 ScreenShots
 
@@ -91,7 +106,7 @@ go build -ldflags="-s -w" -o unicli ./cmd/unicli
 
 ## 📝 License
 
-MIT License - see LICENSE file for details
+MIT License
 
 ## 🙏 Acknowledgments
 
