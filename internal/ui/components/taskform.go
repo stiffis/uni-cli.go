@@ -17,6 +17,7 @@ type TaskForm struct {
 	titleInput       Input
 	descriptionInput TextArea
 	dueDateInput     Input
+	tagsInput        Input
 
 	// Priority selector
 	priorities       []models.TaskPriority
@@ -38,6 +39,7 @@ const (
 	fieldTitle = iota
 	fieldDescription
 	fieldDueDate
+	fieldTags
 	fieldPriority
 	fieldButtons
 )
@@ -47,6 +49,7 @@ func NewTaskForm(task *models.Task) TaskForm {
 	titleInput := NewInput("Title:", "Enter task title...")
 	descriptionInput := NewTextArea("Description:", "Enter task description...")
 	dueDateInput := NewInput("Due Date (optional):", "YYYY-MM-DD or leave empty")
+	tagsInput := NewInput("Tags (comma-separated):", "e.g. uni, project, urgent")
 
 	priorities := []models.TaskPriority{
 		models.TaskPriorityLow,
@@ -59,6 +62,7 @@ func NewTaskForm(task *models.Task) TaskForm {
 		titleInput:       titleInput,
 		descriptionInput: descriptionInput,
 		dueDateInput:     dueDateInput,
+		tagsInput:        tagsInput,
 		priorities:       priorities,
 		selectedPriority: 1, // Default to Medium
 		focusedField:     fieldTitle,
@@ -74,6 +78,9 @@ func NewTaskForm(task *models.Task) TaskForm {
 		form.descriptionInput.SetValue(task.Description)
 		if task.DueDate != nil {
 			form.dueDateInput.SetValue(task.DueDate.Format("2006-01-02"))
+		}
+		if len(task.Tags) > 0 {
+			form.tagsInput.SetValue(strings.Join(task.Tags, ", "))
 		}
 		for i, p := range priorities {
 			if p == task.Priority {
@@ -111,14 +118,14 @@ func (f TaskForm) Update(msg tea.Msg) (TaskForm, tea.Cmd) {
 		case "tab", "down":
 			// Move to next field
 			f.blurAll()
-			f.focusedField = (f.focusedField + 1) % 5
+			f.focusedField = (f.focusedField + 1) % 6
 			cmd = f.focusField(f.focusedField)
 			return f, cmd
 
 		case "shift+tab", "up":
 			// Move to previous field
 			f.blurAll()
-			f.focusedField = (f.focusedField + 4) % 5
+			f.focusedField = (f.focusedField + 5) % 6
 			cmd = f.focusField(f.focusedField)
 			return f, cmd
 
@@ -159,6 +166,8 @@ func (f TaskForm) Update(msg tea.Msg) (TaskForm, tea.Cmd) {
 		cmd = f.descriptionInput.Update(msg)
 	case fieldDueDate:
 		cmd = f.dueDateInput.Update(msg)
+	case fieldTags:
+		cmd = f.tagsInput.Update(msg)
 	}
 
 	return f, cmd
@@ -188,6 +197,10 @@ func (f TaskForm) View() string {
 
 	// Due date input
 	sections = append(sections, f.dueDateInput.View())
+	sections = append(sections, "")
+
+	// Tags input
+	sections = append(sections, f.tagsInput.View())
 	sections = append(sections, "")
 
 	// Priority selector
@@ -305,6 +318,7 @@ func (f *TaskForm) blurAll() {
 	f.titleInput.Blur()
 	f.descriptionInput.Blur()
 	f.dueDateInput.Blur()
+	f.tagsInput.Blur()
 }
 
 // focusField focuses a specific field
@@ -316,6 +330,8 @@ func (f *TaskForm) focusField(field int) tea.Cmd {
 		return f.descriptionInput.Focus()
 	case fieldDueDate:
 		return f.dueDateInput.Focus()
+	case fieldTags:
+		return f.tagsInput.Focus()
 	}
 	return nil
 }
@@ -350,6 +366,20 @@ func (f TaskForm) GetTask() *models.Task {
 		if dueDate, err := time.ParseInLocation("2006-01-02", dueDateStr, time.Local); err == nil {
 			task.DueDate = &dueDate
 		}
+	}
+
+	// Parse tags if provided
+	tagsStr := strings.TrimSpace(f.tagsInput.Value())
+	if tagsStr != "" {
+		rawTags := strings.Split(tagsStr, ",")
+		var cleanTags []string
+		for _, tag := range rawTags {
+			trimmed := strings.TrimSpace(tag)
+			if trimmed != "" {
+				cleanTags = append(cleanTags, trimmed)
+			}
+		}
+		task.Tags = cleanTags
 	}
 
 	return task
