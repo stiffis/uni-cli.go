@@ -310,13 +310,7 @@ func (m CalendarScreen) renderDeleteConfirmDialog(baseView string) string {
 			),
 		))
 
-	return lipgloss.Place(
-		m.width,
-		m.height,
-		lipgloss.Center,
-		lipgloss.Center,
-		dialog,
-	)
+	return dialog
 }
 
 func (m CalendarScreen) renderCalendar() string {
