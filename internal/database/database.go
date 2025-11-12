@@ -12,6 +12,7 @@ import (
 type DB struct {
 	conn       *sql.DB
 	taskRepo   *repositories.TaskRepository
+	eventRepo  *repositories.EventRepository
 }
 
 // New creates a new database connection
@@ -30,6 +31,7 @@ func New(path string) (*DB, error) {
 	
 	// Initialize repositories
 	db.taskRepo = repositories.NewTaskRepository(conn)
+	db.eventRepo = repositories.NewEventRepository(conn)
 
 	return db, nil
 }
@@ -47,6 +49,11 @@ func (db *DB) Conn() *sql.DB {
 // Tasks returns the task repository
 func (db *DB) Tasks() *repositories.TaskRepository {
 	return db.taskRepo
+}
+
+// Events returns the event repository
+func (db *DB) Events() *repositories.EventRepository {
+	return db.eventRepo
 }
 
 // Migrate runs database migrations

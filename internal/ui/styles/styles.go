@@ -13,8 +13,10 @@ var (
 	Warning   = lipgloss.Color("#FF9E3B") // roninYellow - Diagnostic Warning
 	Danger    = lipgloss.Color("#E82424") // samuraiRed - Diagnostic Error
 	Info      = lipgloss.Color("#6A9589") // waveAqua1 - Diagnostic Info
+	Accent    = lipgloss.Color("#629E8B") // waveAqua2 - Accent color for calendar weekdays
 	Muted     = lipgloss.Color("#727169") // fujiGray - Comments
 	AutumnYellow = lipgloss.Color("#DCA561") // Git Change - as requested by user
+	AutumnRed    = lipgloss.Color("#C34043") // Git Delete - as requested by user
 	
 	// Backgrounds
 	Background       = lipgloss.Color("#1F1F28") // sumiInk1 - Default background

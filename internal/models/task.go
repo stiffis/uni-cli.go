@@ -119,3 +119,40 @@ func (t *Task) CompletionRatio() string {
 
 	return fmt.Sprintf("(%d/%d)", completed, len(t.Subtasks))
 }
+
+// GetID returns the ID of the task
+func (t *Task) GetID() string {
+	return t.ID
+}
+
+// GetTitle returns the title of the task
+func (t *Task) GetTitle() string {
+	return t.Title
+}
+
+// GetStartTime returns the due date of the task as the start time
+func (t *Task) GetStartTime() time.Time {
+	if t.DueDate == nil {
+		return time.Time{} // Return zero time if no due date
+	}
+	return *t.DueDate
+}
+
+// GetEndTime returns nil for tasks as they typically don't have an end time
+func (t *Task) GetEndTime() *time.Time {
+	return nil
+}
+
+// IsAllDay returns true if the task has a due date but no specific time
+func (t *Task) IsAllDay() bool {
+	if t.DueDate == nil {
+		return false
+	}
+	// Consider it all-day if the time part is zero
+	return t.DueDate.Hour() == 0 && t.DueDate.Minute() == 0 && t.DueDate.Second() == 0
+}
+
+// GetType returns the type of the calendar item (task)
+func (t *Task) GetType() string {
+	return "task"
+}

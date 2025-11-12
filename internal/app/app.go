@@ -34,6 +34,7 @@ type Model struct {
 	width       int
 	height      int
 	taskScreen  tea.Model
+	calendarScreen tea.Model
 	ready       bool
 	err         error
 
@@ -53,6 +54,7 @@ func NewModel(db *database.DB, cfg *config.Config) Model {
 		cfg:         cfg,
 		currentView: ViewWelcome, // Start with Welcome screen
 		taskScreen:  screens.NewTaskScreen(db),
+		calendarScreen: screens.NewCalendarScreen(db),
 	}
 }
 
@@ -73,6 +75,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.currentView == ViewTasks {
 			var cmd tea.Cmd
 			m.taskScreen, cmd = m.taskScreen.Update(msg)
+			return m, cmd
+		} else if m.currentView == ViewCalendar {
+			var cmd tea.Cmd
+			sidebarWidth := 20
+			if m.width < 80 {
+				sidebarWidth = 15
+			}
+			contentWidth := m.width - sidebarWidth - 4
+			m.calendarScreen, cmd = m.calendarScreen.Update(tea.WindowSizeMsg{Width: contentWidth, Height: m.height})
 			return m, cmd
 		}
 		return m, nil
@@ -125,6 +136,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if newView == ViewTasks {
 					// Reload tasks when entering the view
 					cmd = m.taskScreen.Init()
+				} else if newView == ViewCalendar {
+					// Send a window size message to the calendar screen
+					// to ensure it has the correct dimensions.
+					sidebarWidth := 20
+					if m.width < 80 {
+						sidebarWidth = 15
+					}
+					contentWidth := m.width - sidebarWidth - 4
+					m.calendarScreen, _ = m.calendarScreen.Update(tea.WindowSizeMsg{Width: contentWidth, Height: m.height})
+					cmd = m.calendarScreen.Init()
 				}
 				return m, cmd
 			case "esc":
@@ -152,6 +173,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch m.currentView {
 	case ViewTasks:
 		m.taskScreen, cmd = m.taskScreen.Update(msg)
+	case ViewCalendar:
+		m.calendarScreen, cmd = m.calendarScreen.Update(msg)
 	}
 	return m, cmd
 }
@@ -257,7 +280,7 @@ func (m Model) View() string {
 	case ViewTasks:
 		content = m.taskScreen.View()
 	case ViewCalendar:
-		content = "Calendar View (Coming Soon)"
+		content = m.calendarScreen.View()
 	case ViewClasses:
 		content = "Classes View (Coming Soon)"
 	case ViewGrades:
