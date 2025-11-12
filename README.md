@@ -90,6 +90,8 @@ unicli/
 
 ![UniCLI Interface](assets/welcomeview.png)
 ![Taks Management](assets/tasksview.png)
+![Task Detail](assets/tasksdetails.png)
+![Calendat View](assets/calendarview.png)
 
 ## 🛠️ Development
 
