@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/stiffis/UniCLI/internal/database"
 	"github.com/stiffis/UniCLI/internal/models"
+	"github.com/stiffis/UniCLI/internal/ui/components"
 	"github.com/stiffis/UniCLI/internal/ui/styles"
 )
 
@@ -20,6 +21,12 @@ type CalendarScreen struct {
 	height      int
 	selectedDay   int
 	calendarItems []models.CalendarItem
+	showDayDetails bool
+	showEventForm  bool
+	eventForm      components.EventForm
+	selectedEventID string
+	showDeleteConfirm bool
+	selectedItemIndex int
 }
 
 // NewCalendarScreen creates a new model for the calendar view
@@ -86,13 +93,111 @@ func (e errMsg) Error() string { return e.err.Error() }
 
 
 
+func (m CalendarScreen) deleteEvent(eventID string) tea.Cmd {
+	return func() tea.Msg {
+		err := m.db.Events().Delete(eventID)
+		if err != nil {
+			return errMsg{err}
+		}
+		return m.fetchCalendarItemsCmd()()
+	}
+}
+
+func (m CalendarScreen) getItemsForSelectedDay() []models.CalendarItem {
+	var itemsForSelectedDay []models.CalendarItem
+	for _, item := range m.calendarItems {
+		if item.GetStartTime().Day() == m.selectedDay && item.GetStartTime().Month() == m.currentDate.Month() {
+			itemsForSelectedDay = append(itemsForSelectedDay, item)
+		}
+	}
+	return itemsForSelectedDay
+}
+
 // Update handles messages and updates the calendar screen model
 func (m CalendarScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
 	case tea.KeyMsg:
+		if m.showDeleteConfirm {
+			switch msg.String() {
+			case "y", "Y":
+				m.showDeleteConfirm = false
+				if m.selectedEventID != "" {
+					return m, m.deleteEvent(m.selectedEventID)
+				}
+			case "n", "N", "esc":
+				m.showDeleteConfirm = false
+			}
+			return m, nil
+		}
+
+		if m.showEventForm {
+			m.eventForm, cmd = m.eventForm.Update(msg)
+			if m.eventForm.IsSubmitted() {
+				event := m.eventForm.GetEvent()
+				m.showEventForm = false
+				if m.eventForm.IsNewEvent() {
+					return m, m.createEvent(event)
+				} else {
+					return m, m.updateEvent(event)
+				}
+			} else if m.eventForm.IsCancelled() {
+				m.showEventForm = false
+			}
+			return m, cmd
+		}
+
+		if m.showDayDetails {
+			items := m.getItemsForSelectedDay()
+			switch msg.String() {
+			case "esc":
+				m.showDayDetails = false
+				m.selectedItemIndex = 0
+				m.selectedEventID = ""
+			case "j", "down":
+				if m.selectedItemIndex < len(items)-1 {
+					m.selectedItemIndex++
+				}
+			case "k", "up":
+				if m.selectedItemIndex > 0 {
+					m.selectedItemIndex--
+				}
+			case "n":
+				m.showEventForm = true
+				m.eventForm = components.NewEventForm(nil)
+				return m, nil
+			case "e":
+				if m.selectedItemIndex >= 0 && m.selectedItemIndex < len(items) {
+					m.selectedEventID = items[m.selectedItemIndex].GetID()
+					var eventToEdit *models.Event
+					for _, item := range m.calendarItems {
+						if item.GetID() == m.selectedEventID {
+							if event, ok := item.(*models.Event); ok {
+								eventToEdit = event
+								break
+							}
+						}
+					}
+					if eventToEdit != nil {
+						m.showEventForm = true
+						m.eventForm = components.NewEventForm(eventToEdit)
+					}
+				}
+				return m, nil
+			case "d":
+				if m.selectedItemIndex >= 0 && m.selectedItemIndex < len(items) {
+					m.selectedEventID = items[m.selectedItemIndex].GetID()
+					m.showDeleteConfirm = true
+				}
+				return m, nil
+			}
+			return m, nil
+		}
+
 		oldMonth := m.currentDate.Month()
 		switch msg.String() {
 		case "H":
@@ -109,6 +214,8 @@ func (m CalendarScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "j":
 			lastOfMonth := time.Date(m.currentDate.Year(), m.currentDate.Month(), 1, 0, 0, 0, 0, m.currentDate.Location()).AddDate(0, 1, -1).Day()
 			m.selectedDay = min(lastOfMonth, m.selectedDay+7) // Move down one week
+		case "enter":
+			m.showDayDetails = true
 		case "esc":
 			// Handle escape key if needed for this screen
 		}
@@ -128,14 +235,89 @@ func (m CalendarScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m CalendarScreen) createEvent(event *models.Event) tea.Cmd {
+	return func() tea.Msg {
+		err := m.db.Events().Create(event)
+		if err != nil {
+			return errMsg{err}
+		}
+		return m.fetchCalendarItemsCmd()()
+	}
+}
+
+func (m CalendarScreen) updateEvent(event *models.Event) tea.Cmd {
+	return func() tea.Msg {
+		err := m.db.Events().Update(event)
+		if err != nil {
+			return errMsg{err}
+		}
+		return m.fetchCalendarItemsCmd()()
+	}
+}
+
 // View renders the calendar screen
 func (m CalendarScreen) View() string {
 	if m.width == 0 || m.height == 0 {
 		return "Initializing calendar..."
 	}
 
+	var mainView string
+	if m.showEventForm {
+		mainView = m.eventForm.View()
+	} else if m.showDayDetails {
+		mainView = m.renderDayDetails()
+	} else {
+		mainView = m.renderCalendar()
+	}
+
+	if m.showDeleteConfirm {
+		return m.renderDeleteConfirmDialog(mainView)
+	}
+
+	return mainView
+}
+
+func (m CalendarScreen) renderDeleteConfirmDialog(baseView string) string {
+	var eventTitle string
+	for _, item := range m.calendarItems {
+		if item.GetID() == m.selectedEventID {
+			eventTitle = item.GetTitle()
+			break
+		}
+	}
+
+	question := fmt.Sprintf("Delete event \"%s\"?", eventTitle)
+
+	dialog := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(styles.Danger).
+		Padding(1, 2).
+		Render(lipgloss.JoinVertical(
+			lipgloss.Center,
+			styles.Title.Render(question),
+			"",
+			styles.Dimmed.Render("This action cannot be undone."),
+			"",
+			lipgloss.JoinHorizontal(
+				lipgloss.Top,
+				styles.Shortcut.Render("y") + styles.ShortcutText.Render(" delete"),
+				"  ",
+				styles.Shortcut.Render("n") + styles.ShortcutText.Render(" cancel"),
+			),
+		))
+
+	return lipgloss.Place(
+		m.width,
+		m.height,
+		lipgloss.Center,
+		lipgloss.Center,
+		dialog,
+	)
+}
+
+func (m CalendarScreen) renderCalendar() string {
 	// Use a portion of the full width for the calendar
-	containerWidth := m.width - 18 
+	containerWidth := m.width - 18
 	if containerWidth < 40 { // Minimum width for the calendar grid
 		containerWidth = 40
 	}
@@ -215,11 +397,12 @@ func (m CalendarScreen) View() string {
 		isSelected := day == m.selectedDay
 		isToday := time.Now().Year() == m.currentDate.Year() && time.Now().Month() == m.currentDate.Month() && day == time.Now().Day()
 
-		        		if isSelected {
-		        			dayStyle = dayStyle.Copy().BorderForeground(styles.Warning)
-		        		} else if isToday {
-		        			dayStyle = dayStyle.Copy().BorderForeground(styles.Secondary)
-		        		}	
+		if isSelected {
+			dayStyle = dayStyle.Copy().BorderForeground(styles.Warning)
+		} else if isToday {
+			dayStyle = dayStyle.Copy().BorderForeground(styles.Secondary)
+		}
+
 		row = append(row, dayStyle.Render(cellRenderContent))
 
 		if (firstWeekday+day)%7 == 0 {
@@ -238,7 +421,7 @@ func (m CalendarScreen) View() string {
 
 	calendarGrid := lipgloss.JoinVertical(lipgloss.Left, rows...)
 
-	shortcuts := renderShortcuts()
+	shortcuts := m.renderShortcuts()
 
 	return lipgloss.JoinVertical(lipgloss.Left,
 		title,
@@ -248,10 +431,68 @@ func (m CalendarScreen) View() string {
 	)
 }
 
-func renderShortcuts() string {
-	shortcuts := []string{
-		styles.Shortcut.Render("h/j/k/l") + styles.ShortcutText.Render(" navigate"),
-		styles.Shortcut.Render("H/L") + styles.ShortcutText.Render(" change month"),
+func (m CalendarScreen) renderDayDetails() string {
+	itemsForSelectedDay := m.getItemsForSelectedDay()
+
+	// Build details content
+	var detailsContent string
+	if len(itemsForSelectedDay) > 0 {
+		var itemStrings []string
+		for i, item := range itemsForSelectedDay {
+			var icon string
+			var itemString string
+			if item.GetType() == "task" {
+				icon = lipgloss.NewStyle().Foreground(styles.AutumnRed).Render("")
+				itemString = fmt.Sprintf("%s %s", icon, item.GetTitle())
+			} else if item.GetType() == "event" {
+				icon = lipgloss.NewStyle().Foreground(styles.AutumnRed).Render("")
+				itemString = fmt.Sprintf("%s %s (%s)", icon, item.GetTitle(), item.GetStartTime().Format("15:04"))
+			}
+
+			if i == m.selectedItemIndex {
+				itemString = lipgloss.NewStyle().Background(styles.SelectedBackground).Foreground(styles.SelectedForeground).Render(itemString)
+			}
+			itemStrings = append(itemStrings, itemString)
+		}
+		detailsContent = lipgloss.JoinVertical(lipgloss.Left, itemStrings...)
+	} else {
+		detailsContent = "No items for this day."
+	}
+
+	// Style the details panel
+	detailsPanelStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(styles.Primary).
+		Padding(1, 2).
+		Width(m.width / 2).
+		Height(m.height / 2)
+
+	renderedDetails := detailsPanelStyle.Render(detailsContent)
+	shortcuts := m.renderShortcuts()
+
+	return lipgloss.JoinVertical(lipgloss.Left,
+		renderedDetails,
+		shortcuts,
+	)
+}
+
+func (m CalendarScreen) renderShortcuts() string {
+	var shortcuts []string
+
+	if m.showDayDetails {
+		shortcuts = []string{
+			styles.Shortcut.Render("esc") + styles.ShortcutText.Render(" close details"),
+			styles.Shortcut.Render("n") + styles.ShortcutText.Render(" new event"),
+			styles.Shortcut.Render("e") + styles.ShortcutText.Render(" edit event"),
+			styles.Shortcut.Render("d") + styles.ShortcutText.Render(" delete event"),
+		}
+	} else {
+		shortcuts = []string{
+			styles.Shortcut.Render("h/j/k/l") + styles.ShortcutText.Render(" navigate"),
+			styles.Shortcut.Render("H/L") + styles.ShortcutText.Render(" change month"),
+			styles.Shortcut.Render("enter") + styles.ShortcutText.Render(" view day details"),
+			styles.Shortcut.Render("n") + styles.ShortcutText.Render(" new event"),
+		}
 	}
 
 	shortcutLine := strings.Join(shortcuts, "  ")

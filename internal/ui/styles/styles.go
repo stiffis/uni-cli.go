@@ -24,6 +24,8 @@ var (
 	Foreground       = lipgloss.Color("#DCD7BA") // fujiWhite - Default foreground
 	Border           = lipgloss.Color("#54546D") // sumiInk4 - Darker foreground, float borders
 	BorderFocused    = lipgloss.Color("#7E9CD8") // crystalBlue - Same as Primary for focus
+	SelectedBackground = lipgloss.Color("#7E9CD8") // crystalBlue - Background for selected items
+	SelectedForeground = lipgloss.Color("#1F1F28") // sumiInk1 - Foreground for selected items
 )
 
 // Base styles
