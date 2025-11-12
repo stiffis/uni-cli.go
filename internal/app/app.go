@@ -155,17 +155,25 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		// Normal mode key handling
-		switch msg.String() {
-		case "ctrl+c":
-			return m, tea.Quit
-		case ":":
-			// Enter command mode
-			m.commandMode = true
-			m.commandInput = ""
-			return m, nil
-		}
-	}
+		                // Normal mode key handling
+		                switch msg.String() {
+		                case "ctrl+c":
+		                        return m, tea.Quit
+		                case ":":
+		                        // Check if calendar screen is active and if the event form is active
+		                        if m.currentView == ViewCalendar {
+		                                if calendar, ok := m.calendarScreen.(screens.CalendarScreen); ok {
+		                                        if calendar.IsEventFormActive() {
+		                                                // Don't enter command mode if event form is active
+		                                                break
+		                                        }
+		                                }
+		                        }
+		                        // Enter command mode
+		                        m.commandMode = true
+		                        m.commandInput = ""
+		                        return m, nil
+		                }	}
 
 	// Update current screen - ALWAYS pass messages to active view
 	// This is important for async messages like tasksLoadedMsg

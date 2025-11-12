@@ -17,6 +17,7 @@ var (
 	Muted     = lipgloss.Color("#727169") // fujiGray - Comments
 	AutumnYellow = lipgloss.Color("#DCA561") // Git Change - as requested by user
 	AutumnRed    = lipgloss.Color("#C34043") // Git Delete - as requested by user
+	SakuraPink   = lipgloss.Color("#D27E99") // Numbers - as requested by user
 	
 	// Backgrounds
 	Background       = lipgloss.Color("#1F1F28") // sumiInk1 - Default background

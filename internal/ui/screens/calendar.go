@@ -113,6 +113,10 @@ func (m CalendarScreen) getItemsForSelectedDay() []models.CalendarItem {
 	return itemsForSelectedDay
 }
 
+func (m CalendarScreen) IsEventFormActive() bool {
+	return m.showEventForm
+}
+
 // Update handles messages and updates the calendar screen model
 func (m CalendarScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
@@ -379,15 +383,20 @@ func (m CalendarScreen) renderCalendar() string {
 		var icons []string
 		for _, item := range m.calendarItems {
 			if item.GetStartTime().Day() == day && item.GetStartTime().Month() == m.currentDate.Month() {
+				var icon string
+				var color lipgloss.Color
 				if item.GetType() == "task" {
-					icons = append(icons, "")
+					icon = ""
+					color = styles.Info
 				} else if item.GetType() == "event" {
-					icons = append(icons, "")
+					icon = ""
+					color = styles.SakuraPink
 				}
+				icons = append(icons, lipgloss.NewStyle().Foreground(color).Render(icon))
 			}
 		}
 		if len(icons) > 0 {
-			iconContent = lipgloss.NewStyle().Foreground(styles.AutumnRed).Render(strings.Join(icons, ""))
+			iconContent = strings.Join(icons, "")
 		}
 
 		// Combine day number and icons
@@ -442,10 +451,10 @@ func (m CalendarScreen) renderDayDetails() string {
 			var icon string
 			var itemString string
 			if item.GetType() == "task" {
-				icon = lipgloss.NewStyle().Foreground(styles.AutumnRed).Render("")
+				icon = lipgloss.NewStyle().Foreground(styles.Info).Render("")
 				itemString = fmt.Sprintf("%s %s", icon, item.GetTitle())
 			} else if item.GetType() == "event" {
-				icon = lipgloss.NewStyle().Foreground(styles.AutumnRed).Render("")
+				icon = lipgloss.NewStyle().Foreground(styles.SakuraPink).Render("")
 				itemString = fmt.Sprintf("%s %s (%s)", icon, item.GetTitle(), item.GetStartTime().Format("15:04"))
 			}
 

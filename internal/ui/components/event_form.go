@@ -12,6 +12,7 @@ import (
 
 // EventForm is a form for creating/editing events
 type EventForm struct {
+	originalEvent    *models.Event
 	eventID          string // ID of the event being edited (empty if new event)
 	titleInput       Input
 	descriptionInput TextArea
@@ -54,6 +55,7 @@ func NewEventForm(event *models.Event) EventForm {
 
 	// If an event is provided, pre-fill the form fields
 	if event != nil {
+		form.originalEvent = event
 		form.eventID = event.ID
 		form.titleInput.SetValue(event.Title)
 		form.descriptionInput.SetValue(event.Description)
@@ -242,11 +244,9 @@ func (f *EventForm) focusField(field int) tea.Cmd {
 // GetEvent returns the event from form data
 func (f EventForm) GetEvent() *models.Event {
 	var event *models.Event
-	if f.eventID != "" {
+	if f.originalEvent != nil {
 		// Editing existing event
-		event = &models.Event{
-			ID: f.eventID,
-		}
+		event = f.originalEvent
 	} else {
 		// Creating new event
 		event = models.NewEvent("", time.Now()) // Provide dummy title and start time
@@ -271,6 +271,8 @@ func (f EventForm) GetEvent() *models.Event {
 		if endDateTime, err := time.ParseInLocation("2006-01-02 15:04", endDateTimeStr, time.Local); err == nil {
 			event.EndDatetime = &endDateTime
 		}
+	} else {
+		event.EndDatetime = nil
 	}
 
 	return event
