@@ -15,16 +15,16 @@ import (
 
 // CalendarScreen is the model for the calendar view
 type CalendarScreen struct {
-	db *database.DB
-	currentDate time.Time
-	width       int
-	height      int
-	selectedDay   int
-	calendarItems []models.CalendarItem
-	showDayDetails bool
-	showEventForm  bool
-	eventForm      components.EventForm
-	selectedEventID string
+	db                *database.DB
+	currentDate       time.Time
+	width             int
+	height            int
+	selectedDay       int
+	calendarItems     []models.CalendarItem
+	showDayDetails    bool
+	showEventForm     bool
+	eventForm         components.EventForm
+	selectedEventID   string
 	showDeleteConfirm bool
 	selectedItemIndex int
 }
@@ -90,8 +90,6 @@ type errMsg struct {
 }
 
 func (e errMsg) Error() string { return e.err.Error() }
-
-
 
 func (m CalendarScreen) deleteEvent(eventID string) tea.Cmd {
 	return func() tea.Msg {
@@ -304,9 +302,9 @@ func (m CalendarScreen) renderDeleteConfirmDialog(baseView string) string {
 			"",
 			lipgloss.JoinHorizontal(
 				lipgloss.Top,
-				styles.Shortcut.Render("y") + styles.ShortcutText.Render(" delete"),
+				styles.Shortcut.Render("y")+styles.ShortcutText.Render(" delete"),
 				"  ",
-				styles.Shortcut.Render("n") + styles.ShortcutText.Render(" cancel"),
+				styles.Shortcut.Render("n")+styles.ShortcutText.Render(" cancel"),
 			),
 		))
 

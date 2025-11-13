@@ -12,10 +12,10 @@ import (
 
 // EventForm is a form for creating/editing events
 type EventForm struct {
-	originalEvent    *models.Event
-	eventID          string // ID of the event being edited (empty if new event)
-	titleInput       Input
-	descriptionInput TextArea
+	originalEvent      *models.Event
+	eventID            string // ID of the event being edited (empty if new event)
+	titleInput         Input
+	descriptionInput   TextArea
 	startDateTimeInput Input
 	endDateTimeInput   Input
 
@@ -44,13 +44,13 @@ func NewEventForm(event *models.Event) EventForm {
 	endDateTimeInput := NewInput("End Time (optional):", "YYYY-MM-DD HH:MM")
 
 	form := EventForm{
-		titleInput:       titleInput,
-		descriptionInput: descriptionInput,
+		titleInput:         titleInput,
+		descriptionInput:   descriptionInput,
 		startDateTimeInput: startDateTimeInput,
 		endDateTimeInput:   endDateTimeInput,
-		focusedField:     eventFieldTitle,
-		width:            60,
-		height:           20,
+		focusedField:       eventFieldTitle,
+		width:              60,
+		height:             20,
 	}
 
 	// If an event is provided, pre-fill the form fields

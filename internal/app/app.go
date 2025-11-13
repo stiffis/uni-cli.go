@@ -28,15 +28,15 @@ const (
 
 // Model is the main application model
 type Model struct {
-	db          *database.DB
-	cfg         *config.Config
-	currentView View
-	width       int
-	height      int
-	taskScreen  tea.Model
+	db             *database.DB
+	cfg            *config.Config
+	currentView    View
+	width          int
+	height         int
+	taskScreen     tea.Model
 	calendarScreen tea.Model
-	ready       bool
-	err         error
+	ready          bool
+	err            error
 
 	// Command mode (like vim)
 	commandMode  bool
@@ -50,10 +50,10 @@ type Model struct {
 // NewModel creates a new application model
 func NewModel(db *database.DB, cfg *config.Config) Model {
 	return Model{
-		db:          db,
-		cfg:         cfg,
-		currentView: ViewWelcome, // Start with Welcome screen
-		taskScreen:  screens.NewTaskScreen(db),
+		db:             db,
+		cfg:            cfg,
+		currentView:    ViewWelcome, // Start with Welcome screen
+		taskScreen:     screens.NewTaskScreen(db),
 		calendarScreen: screens.NewCalendarScreen(db),
 	}
 }
@@ -155,25 +155,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		                // Normal mode key handling
-		                switch msg.String() {
-		                case "ctrl+c":
-		                        return m, tea.Quit
-		                case ":":
-		                        // Check if calendar screen is active and if the event form is active
-		                        if m.currentView == ViewCalendar {
-		                                if calendar, ok := m.calendarScreen.(screens.CalendarScreen); ok {
-		                                        if calendar.IsEventFormActive() {
-		                                                // Don't enter command mode if event form is active
-		                                                break
-		                                        }
-		                                }
-		                        }
-		                        // Enter command mode
-		                        m.commandMode = true
-		                        m.commandInput = ""
-		                        return m, nil
-		                }	}
+		// Normal mode key handling
+		switch msg.String() {
+		case "ctrl+c":
+			return m, tea.Quit
+		case ":":
+			// Check if calendar screen is active and if the event form is active
+			if m.currentView == ViewCalendar {
+				if calendar, ok := m.calendarScreen.(screens.CalendarScreen); ok {
+					if calendar.IsEventFormActive() {
+						// Don't enter command mode if event form is active
+						break
+					}
+				}
+			}
+			// Enter command mode
+			m.commandMode = true
+			m.commandInput = ""
+			return m, nil
+		}
+	}
 
 	// Update current screen - ALWAYS pass messages to active view
 	// This is important for async messages like tasksLoadedMsg

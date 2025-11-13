@@ -10,9 +10,9 @@ import (
 
 // DB wraps the database connection
 type DB struct {
-	conn       *sql.DB
-	taskRepo   *repositories.TaskRepository
-	eventRepo  *repositories.EventRepository
+	conn      *sql.DB
+	taskRepo  *repositories.TaskRepository
+	eventRepo *repositories.EventRepository
 }
 
 // New creates a new database connection
@@ -28,7 +28,7 @@ func New(path string) (*DB, error) {
 	}
 
 	db := &DB{conn: conn}
-	
+
 	// Initialize repositories
 	db.taskRepo = repositories.NewTaskRepository(conn)
 	db.eventRepo = repositories.NewEventRepository(conn)

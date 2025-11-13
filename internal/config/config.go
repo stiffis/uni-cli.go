@@ -26,13 +26,13 @@ type Theme struct {
 // DefaultTheme returns the default color theme
 func DefaultTheme() Theme {
 	return Theme{
-		Primary:   "#7C3AED", // Purple
-		Secondary: "#06B6D4", // Cyan
-		Success:   "#10B981", // Green
-		Warning:   "#F59E0B", // Amber
-		Danger:    "#EF4444", // Red
-		Info:      "#3B82F6", // Blue
-		Muted:     "#6B7280", // Gray
+		Primary:   "#7C3AED",
+		Secondary: "#06B6D4",
+		Success:   "#10B981",
+		Warning:   "#F59E0B",
+		Danger:    "#EF4444",
+		Info:      "#3B82F6",
+		Muted:     "#6B7280",
 	}
 }
 
@@ -44,7 +44,7 @@ func Load() (*Config, error) {
 	}
 
 	dataDir := filepath.Join(homeDir, ".unicli")
-	
+
 	// Create data directory if it doesn't exist
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
 		return nil, err

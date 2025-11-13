@@ -1,5 +1,9 @@
-for each Course made a tags
+# Task Management Ideas
 
-view personalization: kanban, simple list
+## Features to Consider
 
-filters, and view by
+- Create tags for each course
+- Add view personalization options:
+  - Kanban board (current)
+  - Simple list view
+- Implement advanced filters and sorting options

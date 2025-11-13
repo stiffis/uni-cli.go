@@ -35,8 +35,8 @@ type TaskScreen struct {
 	width          int
 	height         int
 	loading        bool
-	err         error
-	feedbackMsg string
+	err            error
+	feedbackMsg    string
 
 	// Form state
 	showForm          bool
@@ -66,13 +66,13 @@ func NewTaskScreen(db *database.DB) *TaskScreen {
 			ColumnInProgress: 0,
 			ColumnDone:       0,
 		},
-		selectedTaskID: "",
-		loading:        true,
-		showForm:       false,
-		showDetails:    false,
-		moveMode:       false,
-		subtaskCursor:  0,
-		isCreatingSubtask: false,
+		selectedTaskID:            "",
+		loading:                   true,
+		showForm:                  false,
+		showDetails:               false,
+		moveMode:                  false,
+		subtaskCursor:             0,
+		isCreatingSubtask:         false,
 		isConfirmingDeleteSubtask: false,
 	}
 }
@@ -99,45 +99,45 @@ func (s *TaskScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		s.loading = false
 		s.err = msg.err
 
-					// Sort tasks with custom logic
-					priorityMap := map[models.TaskPriority]int{
-						models.TaskPriorityUrgent: 4,
-						models.TaskPriorityHigh:   3,
-						models.TaskPriorityMedium: 2,
-						models.TaskPriorityLow:    1,
-					}
-					sort.Slice(s.tasks, func(i, j int) bool {
-						taskA := s.tasks[i]
-						taskB := s.tasks[j]
-		
-						// Rule 1: Overdue status
-						if isAOverdue := taskA.IsOverdue(); isAOverdue != taskB.IsOverdue() {
-							return isAOverdue
-						}
-		
-						// Rule 2: Priority
-						priorityA := priorityMap[taskA.Priority]
-						priorityB := priorityMap[taskB.Priority]
-						if priorityA != priorityB {
-							return priorityA > priorityB
-						}
-		
-						// Rule 3: Due Date
-						if taskA.DueDate != nil && taskB.DueDate == nil {
-							return true
-						}
-						if taskA.DueDate == nil && taskB.DueDate != nil {
-							return false
-						}
-						if taskA.DueDate != nil && taskB.DueDate != nil {
-							if !taskA.DueDate.Equal(*taskB.DueDate) {
-								return taskA.DueDate.Before(*taskB.DueDate)
-							}
-						}
-		
-						// Rule 4: Creation Date
-						return taskA.CreatedAt.Before(taskB.CreatedAt)
-					})
+		// Sort tasks with custom logic
+		priorityMap := map[models.TaskPriority]int{
+			models.TaskPriorityUrgent: 4,
+			models.TaskPriorityHigh:   3,
+			models.TaskPriorityMedium: 2,
+			models.TaskPriorityLow:    1,
+		}
+		sort.Slice(s.tasks, func(i, j int) bool {
+			taskA := s.tasks[i]
+			taskB := s.tasks[j]
+
+			// Rule 1: Overdue status
+			if isAOverdue := taskA.IsOverdue(); isAOverdue != taskB.IsOverdue() {
+				return isAOverdue
+			}
+
+			// Rule 2: Priority
+			priorityA := priorityMap[taskA.Priority]
+			priorityB := priorityMap[taskB.Priority]
+			if priorityA != priorityB {
+				return priorityA > priorityB
+			}
+
+			// Rule 3: Due Date
+			if taskA.DueDate != nil && taskB.DueDate == nil {
+				return true
+			}
+			if taskA.DueDate == nil && taskB.DueDate != nil {
+				return false
+			}
+			if taskA.DueDate != nil && taskB.DueDate != nil {
+				if !taskA.DueDate.Equal(*taskB.DueDate) {
+					return taskA.DueDate.Before(*taskB.DueDate)
+				}
+			}
+
+			// Rule 4: Creation Date
+			return taskA.CreatedAt.Before(taskB.CreatedAt)
+		})
 		// Adjust cursors if needed
 		for col := ColumnTodo; col <= ColumnDone; col++ {
 			tasks := s.getTasksForColumn(col)
@@ -422,9 +422,9 @@ func (s *TaskScreen) renderSubtaskDeleteConfirmDialog(baseView string) string {
 			"",
 			lipgloss.JoinHorizontal(
 				lipgloss.Top,
-				styles.Shortcut.Render("y") + styles.ShortcutText.Render(" delete"),
+				styles.Shortcut.Render("y")+styles.ShortcutText.Render(" delete"),
 				"  ",
-				styles.Shortcut.Render("n") + styles.ShortcutText.Render(" cancel"),
+				styles.Shortcut.Render("n")+styles.ShortcutText.Render(" cancel"),
 			),
 		))
 
@@ -462,9 +462,9 @@ func (s *TaskScreen) renderDeleteConfirmDialog(baseView string) string {
 			"",
 			lipgloss.JoinHorizontal(
 				lipgloss.Top,
-				styles.Shortcut.Render("y") + styles.ShortcutText.Render(" delete"),
+				styles.Shortcut.Render("y")+styles.ShortcutText.Render(" delete"),
 				"  ",
-				styles.Shortcut.Render("n") + styles.ShortcutText.Render(" cancel"),
+				styles.Shortcut.Render("n")+styles.ShortcutText.Render(" cancel"),
 			),
 		))
 
@@ -521,7 +521,7 @@ func (s *TaskScreen) renderDetailsView() string {
 	// Styles
 	titleStyle := styles.Title.Copy().Bold(true)
 	labelStyle := lipgloss.NewStyle().Bold(true).Foreground(styles.Muted)
-	descStyle := lipgloss.NewStyle().Width(s.width - 10).Padding(0, 2)
+	descStyle := lipgloss.NewStyle().Width(s.width-10).Padding(0, 2)
 
 	// --- Content ---
 	var b strings.Builder
@@ -568,7 +568,7 @@ func (s *TaskScreen) renderDetailsView() string {
 		if task.IsOverdue() {
 			dueStr += " (Overdue)"
 		}
-		b.WriteString(labelStyle.Render("Due")+": "+dueStr)
+		b.WriteString(labelStyle.Render("Due") + ": " + dueStr)
 		b.WriteString("\n")
 	}
 
@@ -578,7 +578,7 @@ func (s *TaskScreen) renderDetailsView() string {
 		for _, tag := range task.Tags {
 			tagStrings = append(tagStrings, styles.Tag.Render(tag))
 		}
-		b.WriteString(labelStyle.Render("Tags")+": "+strings.Join(tagStrings, " "))
+		b.WriteString(labelStyle.Render("Tags") + ": " + strings.Join(tagStrings, " "))
 		b.WriteString("\n")
 	}
 
@@ -620,8 +620,8 @@ func (s *TaskScreen) renderDetailsView() string {
 	// --- Layout ---
 	containerStyle := styles.Panel.Copy().
 		BorderForeground(styles.Primary).
-		Width(s.width - 2).
-		Height(s.height - 8).
+		Width(s.width-2).
+		Height(s.height-8).
 		Padding(2, 4)
 
 	content := containerStyle.Render(b.String())
@@ -636,7 +636,6 @@ func (s *TaskScreen) renderDetailsView() string {
 		shortcuts,
 	)
 }
-
 
 // renderKanban renders the kanban board
 func (s *TaskScreen) renderKanban() string {

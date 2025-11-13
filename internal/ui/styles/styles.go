@@ -7,26 +7,26 @@ import (
 // Colors - Kanagawa Wave palette
 var (
 	// Main colors
-	Primary   = lipgloss.Color("#7E9CD8") // crystalBlue - Functions and Titles
-	Secondary = lipgloss.Color("#98BB6C") // springGreen - Strings
-	Success   = lipgloss.Color("#76946A") // autumnGreen - Git Add
-	Warning   = lipgloss.Color("#FF9E3B") // roninYellow - Diagnostic Warning
-	Danger    = lipgloss.Color("#E82424") // samuraiRed - Diagnostic Error
-	Info      = lipgloss.Color("#6A9589") // waveAqua1 - Diagnostic Info
-	Accent    = lipgloss.Color("#629E8B") // waveAqua2 - Accent color for calendar weekdays
-	Muted     = lipgloss.Color("#727169") // fujiGray - Comments
-	AutumnYellow = lipgloss.Color("#DCA561") // Git Change - as requested by user
-	AutumnRed    = lipgloss.Color("#C34043") // Git Delete - as requested by user
-	SakuraPink   = lipgloss.Color("#D27E99") // Numbers - as requested by user
-	
+	Primary      = lipgloss.Color("#7E9CD8")
+	Secondary    = lipgloss.Color("#98BB6C")
+	Success      = lipgloss.Color("#76946A")
+	Warning      = lipgloss.Color("#FF9E3B")
+	Danger       = lipgloss.Color("#E82424")
+	Info         = lipgloss.Color("#6A9589")
+	Accent       = lipgloss.Color("#629E8B")
+	Muted        = lipgloss.Color("#727169")
+	AutumnYellow = lipgloss.Color("#DCA561")
+	AutumnRed    = lipgloss.Color("#C34043")
+	SakuraPink   = lipgloss.Color("#D27E99")
+
 	// Backgrounds
-	Background       = lipgloss.Color("#1F1F28") // sumiInk1 - Default background
-	BackgroundLight  = lipgloss.Color("#2A2A37") // sumiInk2 - Lighter background
-	Foreground       = lipgloss.Color("#DCD7BA") // fujiWhite - Default foreground
-	Border           = lipgloss.Color("#54546D") // sumiInk4 - Darker foreground, float borders
-	BorderFocused    = lipgloss.Color("#7E9CD8") // crystalBlue - Same as Primary for focus
-	SelectedBackground = lipgloss.Color("#7E9CD8") // crystalBlue - Background for selected items
-	SelectedForeground = lipgloss.Color("#1F1F28") // sumiInk1 - Foreground for selected items
+	Background         = lipgloss.Color("#1F1F28")
+	BackgroundLight    = lipgloss.Color("#2A2A37")
+	Foreground         = lipgloss.Color("#DCD7BA")
+	Border             = lipgloss.Color("#54546D")
+	BorderFocused      = lipgloss.Color("#7E9CD8")
+	SelectedBackground = lipgloss.Color("#7E9CD8")
+	SelectedForeground = lipgloss.Color("#1F1F28")
 )
 
 // Base styles
