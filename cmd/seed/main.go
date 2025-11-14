@@ -93,17 +93,18 @@ func createTask(title, description string, priority models.TaskPriority, status 
 }
 
 func createCategories(db *database.DB) []models.Category {
+	// Using Kanagawa syntax highlighting colors (like in Neovim)
 	categories := []models.Category{
-		*models.NewCategory("Personal", "#D27E99"),      // sakuraPink
-		*models.NewCategory("Work", "#7E9CD8"),         // crystalBlue
-		*models.NewCategory("University", "#98BB6C"),   // springGreen
-		*models.NewCategory("Health", "#7AA89F"),        // waveAqua2
-		*models.NewCategory("Social", "#FFA066"),        // surimiOrange
-		*models.NewCategory("Finance", "#658594"),       // dragonBlue
-		*models.NewCategory("Hobbies", "#98BB6C"),       // springGreen
-		*models.NewCategory("Travel", "#7FB4CA"),        // springBlue
-		*models.NewCategory("Career", "#223249"),        // waveBlue1
-		*models.NewCategory("Projects", "#7E9CD8"),      // crystalBlue
+		*models.NewCategory("Personal", "#D27E99"),      // sakuraPink (constants, keywords)
+		*models.NewCategory("Work", "#7E9CD8"),          // springBlue (functions, methods)
+		*models.NewCategory("University", "#76946A"),    // autumnGreen (success, diff add)
+		*models.NewCategory("Health", "#7AA89F"),        // waveAqua2 (cyan bright)
+		*models.NewCategory("Social", "#C34043"),        // autumnRed (errors, diff delete)
+		*models.NewCategory("Finance", "#C8C093"),       // oldWhite (foreground alt)
+		*models.NewCategory("Hobbies", "#957FB8"),       // oniViolet (keywords, macros)
+		*models.NewCategory("Travel", "#7FB4CA"),        // lightBlue (identifiers)
+		*models.NewCategory("Career", "#FF9E3B"),        // roninYellow (warnings, important)
+		*models.NewCategory("Projects", "#957FB8"),      // oniViolet (keywords, macros)
 	}
 
 	fmt.Println("\nCreating sample categories...")
