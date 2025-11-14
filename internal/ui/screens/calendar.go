@@ -32,6 +32,8 @@ type CalendarScreen struct {
 	categoryManager     *components.CategoryManager
 	showWeekView        bool
 	weekView            *WeekView
+	showDayView         bool
+	dayView             *DayView
 }
 
 // NewCalendarScreen creates a new model for the calendar view
@@ -179,6 +181,23 @@ func (m CalendarScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 
+	if m.showDayView {
+		// Check for escape key to return to month view
+		if keyMsg, ok := msg.(tea.KeyMsg); ok {
+			if keyMsg.String() == "esc" {
+				m.showDayView = false
+				return m, m.fetchCalendarItemsCmd()
+			}
+		}
+		
+		// Pass all messages to day view
+		var newDayView *DayView
+		newDayView, cmd = m.dayView.Update(msg)
+		m.dayView = newDayView
+		
+		return m, cmd
+	}
+
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -289,7 +308,13 @@ func (m CalendarScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			lastOfMonth := time.Date(m.currentDate.Year(), m.currentDate.Month(), 1, 0, 0, 0, 0, m.currentDate.Location()).AddDate(0, 1, -1).Day()
 			m.selectedDay = min(lastOfMonth, m.selectedDay+7) // Move down one week
 		case "enter":
-			m.showDayDetails = true
+			// Open day view instead of simple details
+			selectedDate := time.Date(m.currentDate.Year(), m.currentDate.Month(), m.selectedDay, 0, 0, 0, 0, m.currentDate.Location())
+			m.showDayView = true
+			m.dayView = NewDayView(m.db, selectedDate)
+			m.dayView.width = m.width
+			m.dayView.height = m.height
+			return m, m.dayView.Init()
 		case "esc":
 			// Handle escape key if needed for this screen
 		}
@@ -355,6 +380,10 @@ func (m CalendarScreen) View() string {
 
 	if m.showWeekView {
 		return m.weekView.View()
+	}
+
+	if m.showDayView {
+		return m.dayView.View()
 	}
 
 	var mainView string
