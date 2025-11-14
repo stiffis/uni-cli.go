@@ -44,3 +44,33 @@ func (r *CategoryRepository) FindAll() ([]models.Category, error) {
 
 	return categories, nil
 }
+
+// Create adds a new category to the database
+func (r *CategoryRepository) Create(category *models.Category) error {
+	query := `INSERT INTO categories (id, name, color) VALUES (?, ?, ?)`
+	_, err := r.DB().Exec(query, category.ID, category.Name, category.Color)
+	if err != nil {
+		return fmt.Errorf("failed to insert category: %w", err)
+	}
+	return nil
+}
+
+// Update modifies an existing category in the database
+func (r *CategoryRepository) Update(category *models.Category) error {
+	query := `UPDATE categories SET name = ?, color = ? WHERE id = ?`
+	_, err := r.DB().Exec(query, category.Name, category.Color, category.ID)
+	if err != nil {
+		return fmt.Errorf("failed to update category: %w", err)
+	}
+	return nil
+}
+
+// Delete removes a category from the database
+func (r *CategoryRepository) Delete(id string) error {
+	query := `DELETE FROM categories WHERE id = ?`
+	_, err := r.DB().Exec(query, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete category: %w", err)
+	}
+	return nil
+}

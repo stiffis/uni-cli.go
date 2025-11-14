@@ -17,3 +17,7 @@ func NewCategory(name, color string) *Category {
 		Color: color,
 	}
 }
+
+func (c Category) FilterValue() string { return c.Name }
+func (c Category) Title() string       { return c.Name }
+func (c Category) Description() string { return "Color: " + c.Color }

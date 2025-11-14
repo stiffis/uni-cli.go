@@ -15,28 +15,31 @@ import (
 
 // CalendarScreen is the model for the calendar view
 type CalendarScreen struct {
-	db                *database.DB
-	currentDate       time.Time
-	width             int
-	height            int
-	selectedDay       int
-	calendarItems     []models.CalendarItem
-	categories        []models.Category
-	showDayDetails    bool
-	showEventForm     bool
-	eventForm         components.EventForm
-	selectedEventID   string
-	showDeleteConfirm bool
-	selectedItemIndex int
+	db                 *database.DB
+	currentDate        time.Time
+	width              int
+	height             int
+	selectedDay        int
+	calendarItems      []models.CalendarItem
+	categories         []models.Category
+	showDayDetails     bool
+	showEventForm      bool
+	eventForm          components.EventForm
+	selectedEventID    string
+	showDeleteConfirm  bool
+	selectedItemIndex  int
+	showCategoryManager bool
+	categoryManager    *components.CategoryManager
 }
 
 // NewCalendarScreen creates a new model for the calendar view
 func NewCalendarScreen(db *database.DB) tea.Model {
 	now := time.Now()
 	return CalendarScreen{
-		db:          db,
-		currentDate: now,
-		selectedDay: now.Day(),
+		db:           db,
+		currentDate:  now,
+		selectedDay:  now.Day(),
+		categoryManager: components.NewCategoryManager(db),
 	}
 }
 
@@ -132,6 +135,16 @@ func (m CalendarScreen) IsEventFormActive() bool {
 func (m CalendarScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
+	if m.showCategoryManager {
+		newModel, newCmd := m.categoryManager.Update(msg)
+		m.categoryManager = newModel.(*components.CategoryManager)
+		if m.categoryManager.IsQuitting() {
+			m.showCategoryManager = false
+			return m, m.fetchCategoriesCmd()
+		}
+		return m, newCmd
+	}
+
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -215,6 +228,11 @@ func (m CalendarScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		oldMonth := m.currentDate.Month()
 		switch msg.String() {
+		case "c":
+			m.showCategoryManager = true
+			m.categoryManager.Reset()
+			m.categoryManager.SetSize(m.width, m.height)
+			return m, m.categoryManager.Init()
 		case "H":
 			m.currentDate = m.currentDate.AddDate(0, -1, 0) // Go back one month
 		case "L":
@@ -288,6 +306,10 @@ func (m CalendarScreen) updateEvent(event *models.Event) tea.Cmd {
 func (m CalendarScreen) View() string {
 	if m.width == 0 || m.height == 0 {
 		return "Initializing calendar..."
+	}
+
+	if m.showCategoryManager {
+		return m.categoryManager.View()
 	}
 
 	var mainView string
@@ -529,6 +551,7 @@ func (m CalendarScreen) renderShortcuts() string {
 			styles.Shortcut.Render("h/j/k/l") + styles.ShortcutText.Render(" navigate"),
 			styles.Shortcut.Render("H/L") + styles.ShortcutText.Render(" change month"),
 			styles.Shortcut.Render("enter") + styles.ShortcutText.Render(" view day details"),
+			styles.Shortcut.Render("c") + styles.ShortcutText.Render(" categories"),
 			styles.Shortcut.Render("n") + styles.ShortcutText.Render(" new event"),
 		}
 	}
