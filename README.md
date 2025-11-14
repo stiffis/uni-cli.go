@@ -210,12 +210,20 @@ UniCLI uses the beautiful **Kanagawa Wave** color palette from Neovim, providing
 ![Task Management](assets/tasksview.png)
 *Task list with categories, priorities, and subtasks*
 
-![Task Details](assets/tasksdetails.png)
+![Task Details](assets/tasksdetailview.png)
 *Detailed task view with all information*
 
-![Calendar View](assets/calendarview.png)
+![Calendar View](assets/calendarmainview.png)
 *Monthly calendar with event indicators*
 
+![Calendar Weekly View](assets/weeklyview.png)
+*Weekly calendar with event indicators*
+
+![Calendar Daily View](assets/dailyview.png)
+*Daily calendar with event indicators*
+
+![Courses View](assets/courseview.png)
+*Course list*
 ## 🛠️ Development
 
 ```bash
