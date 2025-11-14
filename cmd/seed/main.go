@@ -34,12 +34,16 @@ func main() {
 
 	// Create sample tasks
 	tasks := []*models.Task{
-		createTask("Study for Calculus exam", "Review chapters 5-7 and practice problems", models.TaskPriorityHigh, models.TaskStatusPending, 0, []string{"study", "math"}, []string{"Review chapter 5", "Review chapter 6", "Practice problems"}),
-		createTask("Complete project proposal", "Write and submit the final project proposal for CS class", models.TaskPriorityUrgent, models.TaskStatusPending, 0, []string{"project", "cs"}, []string{"Write introduction", "Gather resources", "Write conclusion"}),
+		createTask("Study for Calculus exam", "Review chapters 5-7 and practice problems", models.TaskPriorityHigh, models.TaskStatusPending, 1, []string{"study", "math"}, []string{"Review chapter 5", "Review chapter 6", "Practice problems"}),
+		createTask("Complete project proposal", "Write and submit the final project proposal for CS class", models.TaskPriorityUrgent, models.TaskStatusPending, 2, []string{"project", "cs"}, []string{"Write introduction", "Gather resources", "Write conclusion"}),
 		createTask("Read Chapter 5", "Read chapter 5 of Operating Systems textbook", models.TaskPriorityMedium, models.TaskStatusPending, 3, []string{"reading"}, nil),
 		createTask("Group meeting preparation", "Prepare slides for tomorrow's group meeting", models.TaskPriorityMedium, models.TaskStatusPending, 1, []string{"meeting", "project"}, []string{"Create agenda", "Prepare slides"}),
-		createTask("Submit homework", "Submit physics homework before deadline", models.TaskPriorityHigh, models.TaskStatusPending, -1, []string{"homework", "physics"}, nil),
+		createTask("Submit physics homework", "Submit physics homework before deadline", models.TaskPriorityHigh, models.TaskStatusPending, 4, []string{"homework", "physics"}, nil),
 		createTask("Grocery shopping", "Buy ingredients for the week", models.TaskPriorityLow, models.TaskStatusPending, 2, []string{"personal"}, []string{"Buy milk", "Buy eggs", "Buy bread"}),
+		createTask("Plan weekend trip", "Research and plan a weekend trip", models.TaskPriorityLow, models.TaskStatusPending, 5, []string{"personal", "travel"}, []string{"Choose destination", "Book accommodation", "Plan activities"}),
+		createTask("Finish lab report", "Complete and submit the chemistry lab report", models.TaskPriorityHigh, models.TaskStatusPending, 3, []string{"lab", "chemistry"}, []string{"Analyze data", "Write report", "Proofread"}),
+		createTask("Update resume", "Update resume with recent experience", models.TaskPriorityMedium, models.TaskStatusPending, 6, []string{"career"}, nil),
+		createTask("Clean the apartment", "Clean the kitchen, bathroom, and living room", models.TaskPriorityLow, models.TaskStatusPending, 5, []string{"personal", "chores"}, []string{"Clean kitchen", "Clean bathroom", "Clean living room"}),
 	}
 
 	fmt.Println("Creating sample tasks...")
@@ -90,18 +94,23 @@ func createTask(title, description string, priority models.TaskPriority, status 
 
 func createCategories(db *database.DB) []models.Category {
 	categories := []models.Category{
-		*models.NewCategory("Personal", "#FFC0CB"), // Pink
-		*models.NewCategory("Work", "#ADD8E6"),     // Light Blue
-		*models.NewCategory("University", "#90EE90"), // Light Green
-		*models.NewCategory("Health", "#FFD700"),    // Gold
-		*models.NewCategory("Social", "#FFA07A"),    // Light Salmon
+		*models.NewCategory("Personal", "#D27E99"),      // sakuraPink
+		*models.NewCategory("Work", "#7E9CD8"),         // crystalBlue
+		*models.NewCategory("University", "#98BB6C"),   // springGreen
+		*models.NewCategory("Health", "#7AA89F"),        // waveAqua2
+		*models.NewCategory("Social", "#FFA066"),        // surimiOrange
+		*models.NewCategory("Finance", "#658594"),       // dragonBlue
+		*models.NewCategory("Hobbies", "#98BB6C"),       // springGreen
+		*models.NewCategory("Travel", "#7FB4CA"),        // springBlue
+		*models.NewCategory("Career", "#223249"),        // waveBlue1
+		*models.NewCategory("Projects", "#7E9CD8"),      // crystalBlue
 	}
 
 	fmt.Println("\nCreating sample categories...")
 	for _, category := range categories {
 		// In a real app, you'd use db.Categories().Create(category)
 		// For now, we'll just insert it directly
-		query := "INSERT INTO categories (id, name, color) VALUES (?, ?, ?)"
+		query := "INSERT OR IGNORE INTO categories (id, name, color) VALUES (?, ?, ?)"
 		if _, err := db.Conn().Exec(query, category.ID, category.Name, category.Color); err != nil {
 			fmt.Printf("Error creating category '%s': %v\n", category.Name, err)
 		} else {
@@ -136,6 +145,42 @@ func createEvents(db *database.DB, categories []models.Category) {
 			Description:   "Library, 2nd floor",
 			StartDatetime: time.Now().AddDate(0, 0, 2),
 			CategoryID:    getCategoryIDByName("University", categories),
+		},
+		{
+			Title:         "Dentist Appointment",
+			Description:   "Regular cleaning",
+			StartDatetime: time.Now().AddDate(0, 0, 4),
+			CategoryID:    getCategoryIDByName("Health", categories),
+		},
+		{
+			Title:         "Project Deadline",
+			Description:   "Submit the final version",
+			StartDatetime: time.Now().AddDate(0, 0, 6),
+			CategoryID:    getCategoryIDByName("Projects", categories),
+		},
+		{
+			Title:         "Birthday Party",
+			Description:   "John's birthday party",
+			StartDatetime: time.Now().AddDate(0, 0, 5),
+			CategoryID:    getCategoryIDByName("Social", categories),
+		},
+		{
+			Title:         "Job Interview",
+			Description:   "Interview for the software engineer position",
+			StartDatetime: time.Now().AddDate(0, 0, 3),
+			CategoryID:    getCategoryIDByName("Career", categories),
+		},
+		{
+			Title:         "Pay bills",
+			Description:   "Pay electricity and internet bills",
+			StartDatetime: time.Now().AddDate(0, 0, 1),
+			CategoryID:    getCategoryIDByName("Finance", categories),
+		},
+		{
+			Title:         "Go to the gym",
+			Description:   "Workout session",
+			StartDatetime: time.Now().AddDate(0, 0, 2),
+			CategoryID:    getCategoryIDByName("Health", categories),
 		},
 	}
 

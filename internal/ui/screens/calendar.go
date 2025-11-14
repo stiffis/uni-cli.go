@@ -427,10 +427,10 @@ func (m CalendarScreen) renderCalendar() string {
 				var icon string
 				var color lipgloss.Color
 				if item.GetType() == "task" {
-					icon = ""
+					icon = ""
 					color = styles.Info
 				} else if event, ok := item.(*models.Event); ok {
-					icon = ""
+					icon = ""
 					if event.Category != nil && event.Category.Color != "" {
 						color = lipgloss.Color(event.Category.Color)
 					} else {
@@ -441,7 +441,7 @@ func (m CalendarScreen) renderCalendar() string {
 			}
 		}
 		if len(icons) > 0 {
-			iconContent = strings.Join(icons, "")
+			iconContent = strings.Join(icons, " ")
 		}
 
 		// Combine day number and icons
@@ -496,7 +496,7 @@ func (m CalendarScreen) renderDayDetails() string {
 			var icon string
 			var itemString string
 			if item.GetType() == "task" {
-				icon = lipgloss.NewStyle().Foreground(styles.Info).Render("")
+				icon = lipgloss.NewStyle().Foreground(styles.Info).Render("")
 				itemString = fmt.Sprintf("%s %s", icon, item.GetTitle())
 			} else if event, ok := item.(*models.Event); ok {
 				var color lipgloss.Color
@@ -505,7 +505,7 @@ func (m CalendarScreen) renderDayDetails() string {
 				} else {
 					color = styles.SakuraPink
 				}
-				icon = lipgloss.NewStyle().Foreground(color).Render("")
+				icon = lipgloss.NewStyle().Foreground(color).Render("")
 				itemString = fmt.Sprintf("%s %s (%s)", icon, item.GetTitle(), item.GetStartTime().Format("15:04"))
 			}
 
