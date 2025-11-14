@@ -74,22 +74,13 @@ func (w *WeekView) Init() tea.Cmd {
 // fetchWeekEvents fetches events for the current week
 func (w *WeekView) fetchWeekEvents() tea.Cmd {
 	return func() tea.Msg {
-		// Get start and end of week
+		// Get start of week
 		startOfWeek := w.currentWeek
-		endOfWeek := startOfWeek.AddDate(0, 0, 7)
 
-		// Fetch events for the week
-		allEvents, err := w.db.Events().FindAll()
+		// Fetch events for the week (including course classes)
+		weekEvents, err := w.db.Events().GetEventsWithCoursesForWeek(startOfWeek, w.db.Courses())
 		if err != nil {
 			return errMsg{err}
-		}
-
-		// Filter events within the week
-		var weekEvents []models.Event
-		for _, event := range allEvents {
-			if event.StartDatetime.After(startOfWeek) && event.StartDatetime.Before(endOfWeek) {
-				weekEvents = append(weekEvents, event)
-			}
 		}
 
 		return weekEventsFetchedMsg(weekEvents)
@@ -608,9 +599,16 @@ func (w *WeekView) renderDayCell(day, hour, minute, width int) string {
 			eventStart.Month() == selectedDate.Month() &&
 			slotMinute >= eventStartMinute && slotMinute < eventEndMinute {
 			
-			// Get category color
+			// Get color - either from category or from course
 			bgColor := styles.Info
-			if event.Category != nil && event.Category.Color != "" {
+			if event.Type == "class" && strings.HasPrefix(event.CategoryID, "course_") {
+				// This is a course class, get color from course
+				courseID := strings.TrimPrefix(event.CategoryID, "course_")
+				course, err := w.db.Courses().GetByID(courseID)
+				if err == nil && course.Color != "" {
+					bgColor = lipgloss.Color(course.Color)
+				}
+			} else if event.Category != nil && event.Category.Color != "" {
 				bgColor = lipgloss.Color(event.Category.Color)
 			}
 

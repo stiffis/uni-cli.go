@@ -19,7 +19,7 @@ const (
 	ViewWelcome View = iota
 	ViewTasks
 	ViewCalendar
-	ViewClasses
+	ViewCourses
 	ViewGrades
 	ViewNotes
 	ViewStats
@@ -35,6 +35,7 @@ type Model struct {
 	height         int
 	taskScreen     tea.Model
 	calendarScreen tea.Model
+	coursesScreen  tea.Model
 	ready          bool
 	err            error
 
@@ -55,6 +56,7 @@ func NewModel(db *database.DB, cfg *config.Config) Model {
 		currentView:    ViewWelcome, // Start with Welcome screen
 		taskScreen:     screens.NewTaskScreen(db),
 		calendarScreen: screens.NewCalendarScreen(db),
+		coursesScreen:  screens.NewCoursesScreen(db),
 	}
 }
 
@@ -146,6 +148,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					contentWidth := m.width - sidebarWidth - 4
 					m.calendarScreen, _ = m.calendarScreen.Update(tea.WindowSizeMsg{Width: contentWidth, Height: m.height})
 					cmd = m.calendarScreen.Init()
+				} else if newView == ViewCourses {
+					// Initialize courses screen
+					sidebarWidth := 20
+					if m.width < 80 {
+						sidebarWidth = 15
+					}
+					contentWidth := m.width - sidebarWidth - 4
+					m.coursesScreen, _ = m.coursesScreen.Update(tea.WindowSizeMsg{Width: contentWidth, Height: m.height})
+					cmd = m.coursesScreen.Init()
 				}
 				return m, cmd
 			case "esc":
@@ -180,6 +191,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 			}
+			// Check if courses screen is active and if the course form is active
+			if m.currentView == ViewCourses {
+				if courses, ok := m.coursesScreen.(screens.CoursesScreen); ok {
+					if courses.IsCourseFormActive() {
+						// Don't enter command mode if course form is active
+						break
+					}
+				}
+			}
 			// Enter command mode
 			m.commandMode = true
 			m.commandInput = ""
@@ -195,6 +215,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.taskScreen, cmd = m.taskScreen.Update(msg)
 	case ViewCalendar:
 		m.calendarScreen, cmd = m.calendarScreen.Update(msg)
+	case ViewCourses:
+		m.coursesScreen, cmd = m.coursesScreen.Update(msg)
 	}
 	return m, cmd
 }
@@ -301,8 +323,8 @@ func (m Model) View() string {
 		content = m.taskScreen.View()
 	case ViewCalendar:
 		content = m.calendarScreen.View()
-	case ViewClasses:
-		content = "Classes View (Coming Soon)"
+	case ViewCourses:
+		content = m.coursesScreen.View()
 	case ViewGrades:
 		content = "Grades View (Coming Soon)"
 	case ViewNotes:
@@ -354,7 +376,7 @@ func (m Model) renderSidebar(height int, width int) string {
 	}{
 		{ViewTasks, "1", "", "Tasks"},
 		{ViewCalendar, "2", "󰃭", "Calendar"},
-		{ViewClasses, "3", "󱉟", "Classes"},
+		{ViewCourses, "3", "󱉟", "Courses"},
 		{ViewGrades, "4", "", "Grades"},
 		{ViewNotes, "5", "󰷈", "Notes"},
 		{ViewStats, "6", "󰄨", "Stats"},

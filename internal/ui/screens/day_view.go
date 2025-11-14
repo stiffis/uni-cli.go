@@ -59,22 +59,10 @@ func (d *DayView) Init() tea.Cmd {
 // fetchDayEvents fetches events for the current day
 func (d *DayView) fetchDayEvents() tea.Cmd {
 	return func() tea.Msg {
-		year, month := d.currentDate.Year(), d.currentDate.Month()
-		
-		// Fetch all events for the month (then filter by day)
-		allEvents, err := d.db.Events().GetEventsByMonth(year, month)
+		// Fetch events for this specific day (including course classes)
+		dayEvents, err := d.db.Events().GetEventsWithCoursesForDay(d.currentDate, d.db.Courses())
 		if err != nil {
 			return errMsg{err}
-		}
-
-		// Filter events for this specific day
-		var dayEvents []models.Event
-		for _, event := range allEvents {
-			if event.StartDatetime.Year() == d.currentDate.Year() &&
-				event.StartDatetime.Month() == d.currentDate.Month() &&
-				event.StartDatetime.Day() == d.currentDate.Day() {
-				dayEvents = append(dayEvents, event)
-			}
 		}
 
 		return dayEventsFetchedMsg(dayEvents)
@@ -480,9 +468,16 @@ func (d *DayView) renderEventAtSlot(hour, minute, width int) string {
 		
 		// Check if this slot is within the event time
 		if slotMinute >= eventStartMinute && slotMinute < eventEndMinute {
-			// Get category color
+			// Get color - either from category or from course
 			bgColor := styles.Info
-			if event.Category != nil && event.Category.Color != "" {
+			if event.Type == "class" && strings.HasPrefix(event.CategoryID, "course_") {
+				// This is a course class, get color from course
+				courseID := strings.TrimPrefix(event.CategoryID, "course_")
+				course, err := d.db.Courses().GetByID(courseID)
+				if err == nil && course.Color != "" {
+					bgColor = lipgloss.Color(course.Color)
+				}
+			} else if event.Category != nil && event.Category.Color != "" {
 				bgColor = lipgloss.Color(event.Category.Color)
 			}
 			

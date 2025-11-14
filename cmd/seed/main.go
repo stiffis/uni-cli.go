@@ -69,7 +69,10 @@ func main() {
 	// Create sample events
 	createEvents(db, categories)
 
-	fmt.Println("\nSample tasks, categories and events created successfully!")
+	// Create sample courses
+	createCourses(db, categories)
+
+	fmt.Println("\nSample tasks, categories, events and courses created successfully!")
 	fmt.Println("Run './unicli' to see them in the app.")
 }
 
@@ -321,4 +324,147 @@ func getCategoryIDByName(name string, categories []models.Category) string {
 		}
 	}
 	return ""
+}
+
+func createCourses(db *database.DB, categories []models.Category) {
+	// Get current year for semester
+	now := time.Now()
+	year := now.Year()
+	
+	// Define Computer Science courses
+	courses := []struct {
+		name        string
+		code        string
+		professor   string
+		location    string
+		semester    string
+		credits     int
+		description string
+		color       string
+		schedules   []struct {
+			day       int    // 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri
+			startTime string
+			endTime   string
+		}
+	}{
+		{
+			name:        "Data Structures & Algorithms",
+			code:        "CS-201",
+			professor:   "Dr. Sarah Chen",
+			location:    "Building A, Room 301",
+			semester:    fmt.Sprintf("Fall %d", year),
+			credits:     4,
+			description: "Study of fundamental data structures and algorithms with analysis of their time and space complexity.",
+			color:       "#C34043",
+			schedules: []struct {
+				day       int
+				startTime string
+				endTime   string
+			}{
+				{1, "09:00", "10:30"}, // Monday
+				{3, "09:00", "10:30"}, // Wednesday
+				{5, "09:00", "10:30"}, // Friday
+			},
+		},
+		{
+			name:        "Operating Systems",
+			code:        "CS-301",
+			professor:   "Prof. Michael Rodriguez",
+			location:    "Building B, Room 205",
+			semester:    fmt.Sprintf("Fall %d", year),
+			credits:     4,
+			description: "Comprehensive study of operating system concepts including process management, memory management, and file systems.",
+			color:       "#76946A",
+			schedules: []struct {
+				day       int
+				startTime string
+				endTime   string
+			}{
+				{2, "14:00", "15:30"}, // Tuesday
+				{4, "14:00", "15:30"}, // Thursday
+			},
+		},
+		{
+			name:        "Database Systems",
+			code:        "CS-350",
+			professor:   "Dr. Emily Zhang",
+			location:    "Tech Center, Lab 4",
+			semester:    fmt.Sprintf("Fall %d", year),
+			credits:     3,
+			description: "Design and implementation of database systems including SQL, normalization, and transaction processing.",
+			color:       "#C8C093",
+			schedules: []struct {
+				day       int
+				startTime string
+				endTime   string
+			}{
+				{1, "13:00", "14:30"}, // Monday
+				{3, "13:00", "14:30"}, // Wednesday
+			},
+		},
+		{
+			name:        "Software Engineering",
+			code:        "CS-320",
+			professor:   "Prof. James Anderson",
+			location:    "Engineering Building, Room 102",
+			semester:    fmt.Sprintf("Fall %d", year),
+			credits:     3,
+			description: "Principles and practices of software development including design patterns, testing, and agile methodologies.",
+			color:       "#957FB8",
+			schedules: []struct {
+				day       int
+				startTime string
+				endTime   string
+			}{
+				{2, "10:00", "11:30"}, // Tuesday
+				{4, "10:00", "11:30"}, // Thursday
+			},
+		},
+		{
+			name:        "Computer Networks",
+			code:        "CS-410",
+			professor:   "Dr. Lisa Thompson",
+			location:    "Building C, Room 450",
+			semester:    fmt.Sprintf("Fall %d", year),
+			credits:     3,
+			description: "Study of computer network architectures, protocols, and applications including TCP/IP and network security.",
+			color:       "#7AA89F",
+			schedules: []struct {
+				day       int
+				startTime string
+				endTime   string
+			}{
+				{1, "15:00", "16:30"}, // Monday
+				{3, "15:00", "16:30"}, // Wednesday
+			},
+		},
+	}
+
+	fmt.Println("\nCreating sample courses...")
+	for _, c := range courses {
+		course := models.NewCourse(c.name)
+		course.Code = c.code
+		course.Professor = c.professor
+		course.Location = c.location
+		course.Semester = c.semester
+		course.Credits = c.credits
+		course.Description = c.description
+		course.Color = c.color
+
+		// Add schedules
+		for _, sched := range c.schedules {
+			schedule := models.NewCourseSchedule(course.ID, sched.day, sched.startTime, sched.endTime)
+			course.Schedule = append(course.Schedule, *schedule)
+		}
+
+		if err := db.Courses().Create(course); err != nil {
+			fmt.Printf("Error creating course '%s': %v\n", course.Name, err)
+		} else {
+			fmt.Printf("✓ Created: %s (%s)\n", course.Name, course.Code)
+			for _, sched := range course.Schedule {
+				dayName := []string{"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"}[sched.DayOfWeek%7]
+				fmt.Printf("  → %s %s-%s\n", dayName, sched.StartTime, sched.EndTime)
+			}
+		}
+	}
 }

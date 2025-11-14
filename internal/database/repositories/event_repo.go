@@ -293,3 +293,171 @@ func (r *EventRepository) Delete(id string) error {
 
 	return nil
 }
+
+// GetEventsWithCoursesForMonth gets all events AND course classes for a specific month
+func (r *EventRepository) GetEventsWithCoursesForMonth(year int, month time.Month, courseRepo *CourseRepository) ([]models.Event, error) {
+	// Get regular events
+	events, err := r.GetEventsByMonth(year, month)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get all courses
+	courses, err := courseRepo.GetAll()
+	if err != nil {
+		return nil, err
+	}
+
+	// Generate class events from courses
+	for _, course := range courses {
+		classEvents := course.GenerateEventsForMonth(year, month)
+		for _, classEvent := range classEvents {
+			// Set the course color if available
+			if course.Color != "" {
+				// We'll need to create a category for this or use the color directly
+				// For now, let's set a special marker
+				classEvent.CategoryID = "course_" + course.ID
+			}
+			events = append(events, *classEvent)
+		}
+	}
+
+	return events, nil
+}
+
+// GetEventsWithCoursesForWeek gets all events AND course classes for a specific week
+func (r *EventRepository) GetEventsWithCoursesForWeek(weekStart time.Time, courseRepo *CourseRepository) ([]models.Event, error) {
+	// Get week end
+	weekEnd := weekStart.AddDate(0, 0, 7)
+
+	// Get regular events for the week
+	allEvents, err := r.FindAll()
+	if err != nil {
+		return nil, err
+	}
+
+	var events []models.Event
+	for _, event := range allEvents {
+		if event.RecurrenceRule != "" && event.RecurrenceRule != "none" {
+			// Generate occurrences for recurring events within the week
+			occurrences := generateOccurrencesForRange(event, weekStart, weekEnd)
+			events = append(events, occurrences...)
+		} else {
+			// Add non-recurring events that fall within the week
+			if (event.StartDatetime.Equal(weekStart) || event.StartDatetime.After(weekStart)) &&
+				event.StartDatetime.Before(weekEnd) {
+				events = append(events, event)
+			}
+		}
+	}
+
+	// Get all courses
+	courses, err := courseRepo.GetAll()
+	if err != nil {
+		return nil, err
+	}
+
+	// Generate class events from courses
+	for _, course := range courses {
+		classEvents := course.GenerateEventsForWeek(weekStart)
+		for _, classEvent := range classEvents {
+			if course.Color != "" {
+				classEvent.CategoryID = "course_" + course.ID
+			}
+			events = append(events, *classEvent)
+		}
+	}
+
+	return events, nil
+}
+
+// GetEventsWithCoursesForDay gets all events AND course classes for a specific day
+func (r *EventRepository) GetEventsWithCoursesForDay(date time.Time, courseRepo *CourseRepository) ([]models.Event, error) {
+	// Normalize date to start of day
+	dayStart := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.Local)
+	dayEnd := dayStart.AddDate(0, 0, 1)
+
+	// Get regular events for the day
+	allEvents, err := r.FindAll()
+	if err != nil {
+		return nil, err
+	}
+
+	var events []models.Event
+	for _, event := range allEvents {
+		if event.RecurrenceRule != "" && event.RecurrenceRule != "none" {
+			// Generate occurrences for recurring events within the day
+			occurrences := generateOccurrencesForRange(event, dayStart, dayEnd)
+			events = append(events, occurrences...)
+		} else {
+			// Add non-recurring events that fall within the day
+			if (event.StartDatetime.Equal(dayStart) || event.StartDatetime.After(dayStart)) &&
+				event.StartDatetime.Before(dayEnd) {
+				events = append(events, event)
+			}
+		}
+	}
+
+	// Get all courses
+	courses, err := courseRepo.GetAll()
+	if err != nil {
+		return nil, err
+	}
+
+	// Generate class events from courses
+	for _, course := range courses {
+		classEvents := course.GenerateEventsForDateRange(dayStart, dayEnd)
+		for _, classEvent := range classEvents {
+			if course.Color != "" {
+				classEvent.CategoryID = "course_" + course.ID
+			}
+			events = append(events, *classEvent)
+		}
+	}
+
+	return events, nil
+}
+
+// generateOccurrencesForRange generates event occurrences within a specific date range
+func generateOccurrencesForRange(event models.Event, start, end time.Time) []models.Event {
+	var occurrences []models.Event
+
+	currentTime := event.StartDatetime
+	limitDate := time.Now().AddDate(2, 0, 0)
+	if event.RecurrenceEndDate != nil {
+		limitDate = *event.RecurrenceEndDate
+	}
+
+	for currentTime.Before(limitDate) && currentTime.Before(end) {
+		if (currentTime.Equal(start) || currentTime.After(start)) && currentTime.Before(end) {
+			occurrence := event
+			occurrence.ID = uuid.New().String()
+			occurrence.StartDatetime = currentTime
+			
+			if event.EndDatetime != nil {
+				duration := event.EndDatetime.Sub(event.StartDatetime)
+				newEnd := currentTime.Add(duration)
+				occurrence.EndDatetime = &newEnd
+			}
+			
+			occurrences = append(occurrences, occurrence)
+		}
+
+		switch event.RecurrenceRule {
+		case "daily":
+			currentTime = currentTime.AddDate(0, 0, 1)
+		case "weekly":
+			currentTime = currentTime.AddDate(0, 0, 7)
+		case "monthly":
+			currentTime = currentTime.AddDate(0, 1, 0)
+		default:
+			break
+		}
+
+		if currentTime.After(limitDate) {
+			break
+		}
+	}
+
+	return occurrences
+}

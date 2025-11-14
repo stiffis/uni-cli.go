@@ -44,6 +44,7 @@ func (r *CourseRepository) Create(course *models.Course) error {
 
 	// Create schedules
 	for i := range course.Schedule {
+		course.Schedule[i].CourseID = course.ID // Assign CourseID
 		if err := r.CreateSchedule(&course.Schedule[i]); err != nil {
 			return err
 		}

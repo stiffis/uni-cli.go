@@ -71,8 +71,8 @@ func (m CalendarScreen) fetchCalendarItemsCmd() tea.Cmd {
 			}
 		}
 
-		// Fetch events
-		events, err := m.db.Events().GetEventsByMonth(year, month)
+		// Fetch events (including course classes)
+		events, err := m.db.Events().GetEventsWithCoursesForMonth(year, month, m.db.Courses())
 		if err != nil {
 			return errMsg{err}
 		}
@@ -526,7 +526,17 @@ func (m CalendarScreen) renderCalendar() string {
 					color = styles.Info
 				} else if event, ok := item.(*models.Event); ok {
 					icon = ""
-					if event.Category != nil && event.Category.Color != "" {
+					// Get color - either from category or from course
+					if event.Type == "class" && strings.HasPrefix(event.CategoryID, "course_") {
+						// This is a course class, get color from course
+						courseID := strings.TrimPrefix(event.CategoryID, "course_")
+						course, err := m.db.Courses().GetByID(courseID)
+						if err == nil && course.Color != "" {
+							color = lipgloss.Color(course.Color)
+						} else {
+							color = styles.SakuraPink
+						}
+					} else if event.Category != nil && event.Category.Color != "" {
 						color = lipgloss.Color(event.Category.Color)
 					} else {
 						color = styles.SakuraPink
@@ -595,8 +605,18 @@ func (m CalendarScreen) renderDayDetails() string {
 				itemString = fmt.Sprintf("%s %s", icon, item.GetTitle())
 			} else if event, ok := item.(*models.Event); ok {
 				var color lipgloss.Color
-				if event.Category != nil && event.Category.Color != "" {
-					color = lipgloss.Color(event.Category.Color)
+			// Get color - either from category or from course
+			if event.Type == "class" && strings.HasPrefix(event.CategoryID, "course_") {
+				// This is a course class, get color from course
+				courseID := strings.TrimPrefix(event.CategoryID, "course_")
+				course, err := m.db.Courses().GetByID(courseID)
+				if err == nil && course.Color != "" {
+					color = lipgloss.Color(course.Color)
+				} else {
+					color = styles.SakuraPink
+				}
+					} else if event.Category != nil && event.Category.Color != "" {
+						color = lipgloss.Color(event.Category.Color)
 				} else {
 					color = styles.SakuraPink
 				}
