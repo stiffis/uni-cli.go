@@ -10,9 +10,10 @@ import (
 
 // DB wraps the database connection
 type DB struct {
-	conn      *sql.DB
-	taskRepo  *repositories.TaskRepository
-	eventRepo *repositories.EventRepository
+	conn         *sql.DB
+	taskRepo     *repositories.TaskRepository
+	eventRepo    *repositories.EventRepository
+	categoryRepo *repositories.CategoryRepository
 }
 
 // New creates a new database connection
@@ -32,6 +33,7 @@ func New(path string) (*DB, error) {
 	// Initialize repositories
 	db.taskRepo = repositories.NewTaskRepository(conn)
 	db.eventRepo = repositories.NewEventRepository(conn)
+	db.categoryRepo = repositories.NewCategoryRepository(conn)
 
 	return db, nil
 }
@@ -54,6 +56,11 @@ func (db *DB) Tasks() *repositories.TaskRepository {
 // Events returns the event repository
 func (db *DB) Events() *repositories.EventRepository {
 	return db.eventRepo
+}
+
+// Categories returns the category repository
+func (db *DB) Categories() *repositories.CategoryRepository {
+	return db.categoryRepo
 }
 
 // Migrate runs database migrations
@@ -134,9 +141,17 @@ func (db *DB) Migrate() error {
 		start_datetime DATETIME NOT NULL,
 		end_datetime DATETIME,
 		type TEXT,
+		category_id TEXT,
 		recurrence_rule TEXT,
 		recurrence_end_date DATETIME,
-		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
+	);
+
+	CREATE TABLE IF NOT EXISTS categories (
+		id TEXT PRIMARY KEY,
+		name TEXT NOT NULL UNIQUE,
+		color TEXT NOT NULL
 	);
 
 	CREATE TABLE IF NOT EXISTS notes (
@@ -155,6 +170,47 @@ func (db *DB) Migrate() error {
 
 	if _, err := db.conn.Exec(schema); err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)
+	}
+
+	if err := db.addColumnIfNotExists("events", "recurrence_rule", "TEXT"); err != nil {
+		return err
+	}
+	if err := db.addColumnIfNotExists("events", "recurrence_end_date", "DATETIME"); err != nil {
+		return err
+	}
+	if err := db.addColumnIfNotExists("events", "category_id", "TEXT"); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (db *DB) addColumnIfNotExists(tableName, columnName, columnType string) error {
+	rows, err := db.conn.Query(fmt.Sprintf("PRAGMA table_info(%s)", tableName))
+	if err != nil {
+		return fmt.Errorf("failed to query table info: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var cid int
+		var name string
+		var type_ string
+		var notnull int
+		var dflt_value any
+		var pk int
+		if err := rows.Scan(&cid, &name, &type_, &notnull, &dflt_value, &pk); err != nil {
+			return fmt.Errorf("failed to scan table info: %w", err)
+		}
+		if name == columnName {
+			// Column already exists
+			return nil
+		}
+	}
+
+	query := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", tableName, columnName, columnType)
+	if _, err := db.conn.Exec(query); err != nil {
+		return fmt.Errorf("failed to add column %s to table %s: %w", columnName, tableName, err)
 	}
 
 	return nil

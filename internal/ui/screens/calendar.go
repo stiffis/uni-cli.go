@@ -21,6 +21,7 @@ type CalendarScreen struct {
 	height            int
 	selectedDay       int
 	calendarItems     []models.CalendarItem
+	categories        []models.Category
 	showDayDetails    bool
 	showEventForm     bool
 	eventForm         components.EventForm
@@ -41,7 +42,7 @@ func NewCalendarScreen(db *database.DB) tea.Model {
 
 // Init initializes the calendar screen
 func (m CalendarScreen) Init() tea.Cmd {
-	return m.fetchCalendarItemsCmd()
+	return tea.Batch(m.fetchCalendarItemsCmd(), m.fetchCategoriesCmd())
 }
 
 // fetchCalendarItemsCmd is a tea.Cmd that fetches tasks and events for the current month
@@ -82,8 +83,19 @@ func (m CalendarScreen) fetchCalendarItemsCmd() tea.Cmd {
 	}
 }
 
+func (m CalendarScreen) fetchCategoriesCmd() tea.Cmd {
+	return func() tea.Msg {
+		categories, err := m.db.Categories().FindAll()
+		if err != nil {
+			return errMsg{err}
+		}
+		return categoriesFetchedMsg(categories)
+	}
+}
+
 // calendarItemsFetchedMsg is a message sent when calendar items are fetched
 type calendarItemsFetchedMsg []models.CalendarItem
+type categoriesFetchedMsg []models.Category
 
 // errMsg is a message for errors
 type errMsg struct {
@@ -171,7 +183,7 @@ func (m CalendarScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			case "n":
 				m.showEventForm = true
-				m.eventForm = components.NewEventForm(nil)
+				m.eventForm = components.NewEventForm(nil, m.categories)
 				return m, nil
 			case "e":
 				if m.selectedItemIndex >= 0 && m.selectedItemIndex < len(items) {
@@ -187,7 +199,7 @@ func (m CalendarScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 					if eventToEdit != nil {
 						m.showEventForm = true
-						m.eventForm = components.NewEventForm(eventToEdit)
+						m.eventForm = components.NewEventForm(eventToEdit, m.categories)
 					}
 				}
 				return m, nil
@@ -230,6 +242,20 @@ func (m CalendarScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case calendarItemsFetchedMsg:
 		m.calendarItems = msg
+		// Populate category for each event
+		for _, item := range m.calendarItems {
+			if event, ok := item.(*models.Event); ok {
+				for _, category := range m.categories {
+					if category.ID == event.CategoryID {
+						event.Category = &category
+						break
+					}
+				}
+			}
+		}
+		return m, nil
+	case categoriesFetchedMsg:
+		m.categories = msg
 		return m, nil
 	case errMsg:
 		// Handle error, e.g., display an error message
@@ -381,9 +407,13 @@ func (m CalendarScreen) renderCalendar() string {
 				if item.GetType() == "task" {
 					icon = ""
 					color = styles.Info
-				} else if item.GetType() == "event" {
+				} else if event, ok := item.(*models.Event); ok {
 					icon = ""
-					color = styles.SakuraPink
+					if event.Category != nil && event.Category.Color != "" {
+						color = lipgloss.Color(event.Category.Color)
+					} else {
+						color = styles.SakuraPink
+					}
 				}
 				icons = append(icons, lipgloss.NewStyle().Foreground(color).Render(icon))
 			}
@@ -446,8 +476,14 @@ func (m CalendarScreen) renderDayDetails() string {
 			if item.GetType() == "task" {
 				icon = lipgloss.NewStyle().Foreground(styles.Info).Render("")
 				itemString = fmt.Sprintf("%s %s", icon, item.GetTitle())
-			} else if item.GetType() == "event" {
-				icon = lipgloss.NewStyle().Foreground(styles.SakuraPink).Render("")
+			} else if event, ok := item.(*models.Event); ok {
+				var color lipgloss.Color
+				if event.Category != nil && event.Category.Color != "" {
+					color = lipgloss.Color(event.Category.Color)
+				} else {
+					color = styles.SakuraPink
+				}
+				icon = lipgloss.NewStyle().Foreground(color).Render("")
 				itemString = fmt.Sprintf("%s %s (%s)", icon, item.GetTitle(), item.GetStartTime().Format("15:04"))
 			}
 

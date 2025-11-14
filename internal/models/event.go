@@ -14,6 +14,8 @@ type Event struct {
 	StartDatetime     time.Time  `json:"start_datetime"`
 	EndDatetime       *time.Time `json:"end_datetime"`
 	Type              string     `json:"type"` // e.g., "class", "meeting", "appointment"
+	CategoryID        string     `json:"category_id"`
+	Category          *Category  `json:"category"`
 	RecurrenceRule    string     `json:"recurrence_rule"`
 	RecurrenceEndDate *time.Time `json:"recurrence_end_date"`
 	CreatedAt         time.Time  `json:"created_at"`

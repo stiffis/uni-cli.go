@@ -25,9 +25,9 @@ func NewEventRepository(db *sql.DB) *EventRepository {
 func (r *EventRepository) Create(event *models.Event) error {
 	query := `
 		INSERT INTO events (
-			id, title, description, start_datetime, end_datetime, type, 
+			id, title, description, start_datetime, end_datetime, type, category_id,
 			recurrence_rule, recurrence_end_date, created_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	_, err := r.DB().Exec(
@@ -38,6 +38,7 @@ func (r *EventRepository) Create(event *models.Event) error {
 		event.StartDatetime,
 		event.EndDatetime,
 		event.Type,
+		event.CategoryID,
 		event.RecurrenceRule,
 		event.RecurrenceEndDate,
 		event.CreatedAt,
@@ -53,7 +54,7 @@ func (r *EventRepository) Create(event *models.Event) error {
 // FindByID retrieves an event by its ID
 func (r *EventRepository) FindByID(id string) (*models.Event, error) {
 	query := `
-		SELECT id, title, description, start_datetime, end_datetime, type, 
+		SELECT id, title, description, start_datetime, end_datetime, type, category_id,
 			   recurrence_rule, recurrence_end_date, created_at
 		FROM events
 		WHERE id = ?
@@ -61,7 +62,7 @@ func (r *EventRepository) FindByID(id string) (*models.Event, error) {
 
 	event := &models.Event{}
 	var endDatetime, recurrenceEndDate sql.NullTime
-	var recurrenceRule sql.NullString
+	var recurrenceRule, categoryID sql.NullString
 
 	err := r.DB().QueryRow(query, id).Scan(
 		&event.ID,
@@ -70,6 +71,7 @@ func (r *EventRepository) FindByID(id string) (*models.Event, error) {
 		&event.StartDatetime,
 		&endDatetime,
 		&event.Type,
+		&categoryID,
 		&recurrenceRule,
 		&recurrenceEndDate,
 		&event.CreatedAt,
@@ -84,6 +86,9 @@ func (r *EventRepository) FindByID(id string) (*models.Event, error) {
 
 	if endDatetime.Valid {
 		event.EndDatetime = &endDatetime.Time
+	}
+	if categoryID.Valid {
+		event.CategoryID = categoryID.String
 	}
 	if recurrenceRule.Valid {
 		event.RecurrenceRule = recurrenceRule.String
@@ -124,7 +129,7 @@ func (r *EventRepository) GetEventsByMonth(year int, month time.Month) ([]models
 // findAllEvents retrieves all events from the database
 func (r *EventRepository) findAllEvents() ([]models.Event, error) {
 	query := `
-		SELECT id, title, description, start_datetime, end_datetime, type, 
+		SELECT id, title, description, start_datetime, end_datetime, type, category_id,
 			   recurrence_rule, recurrence_end_date, created_at
 		FROM events
 		ORDER BY start_datetime ASC
@@ -140,7 +145,7 @@ func (r *EventRepository) findAllEvents() ([]models.Event, error) {
 	for rows.Next() {
 		var event models.Event
 		var endDatetime, recurrenceEndDate sql.NullTime
-		var recurrenceRule sql.NullString
+		var recurrenceRule, categoryID sql.NullString
 
 		err := rows.Scan(
 			&event.ID,
@@ -149,6 +154,7 @@ func (r *EventRepository) findAllEvents() ([]models.Event, error) {
 			&event.StartDatetime,
 			&endDatetime,
 			&event.Type,
+			&categoryID,
 			&recurrenceRule,
 			&recurrenceEndDate,
 			&event.CreatedAt,
@@ -159,6 +165,9 @@ func (r *EventRepository) findAllEvents() ([]models.Event, error) {
 
 		if endDatetime.Valid {
 			event.EndDatetime = &endDatetime.Time
+		}
+		if categoryID.Valid {
+			event.CategoryID = categoryID.String
 		}
 		if recurrenceRule.Valid {
 			event.RecurrenceRule = recurrenceRule.String
@@ -182,8 +191,16 @@ func generateOccurrences(event models.Event, year int, month time.Month) []model
 
 	// Loop from the start of the event until the recurrence end date or the end of the month
 	currentTime := event.StartDatetime
+	
+	// If no end date, set a limit to 2 years from now to avoid infinite loops
+	limitDate := time.Now().AddDate(2, 0, 0)
+	if event.RecurrenceEndDate != nil {
+		limitDate = *event.RecurrenceEndDate
+	}
+
+
 	for {
-		if event.RecurrenceEndDate != nil && currentTime.After(*event.RecurrenceEndDate) {
+		if currentTime.After(limitDate) {
 			break
 		}
 
@@ -222,7 +239,7 @@ func generateOccurrences(event models.Event, year int, month time.Month) []model
 func (r *EventRepository) Update(event *models.Event) error {
 	query := `
 		UPDATE events
-		SET title = ?, description = ?, start_datetime = ?, end_datetime = ?, type = ?,
+		SET title = ?, description = ?, start_datetime = ?, end_datetime = ?, type = ?, category_id = ?,
 			recurrence_rule = ?, recurrence_end_date = ?
 		WHERE id = ?
 	`
@@ -234,6 +251,7 @@ func (r *EventRepository) Update(event *models.Event) error {
 		event.StartDatetime,
 		event.EndDatetime,
 		event.Type,
+		event.CategoryID,
 		event.RecurrenceRule,
 		event.RecurrenceEndDate,
 		event.ID,
