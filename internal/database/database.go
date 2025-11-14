@@ -134,6 +134,8 @@ func (db *DB) Migrate() error {
 		start_datetime DATETIME NOT NULL,
 		end_datetime DATETIME,
 		type TEXT,
+		recurrence_rule TEXT,
+		recurrence_end_date DATETIME,
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 	);
 

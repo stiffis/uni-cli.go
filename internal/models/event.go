@@ -8,13 +8,15 @@ import (
 
 // Event represents an event in the calendar
 type Event struct {
-	ID            string     `json:"id"`
-	Title         string     `json:"title"`
-	Description   string     `json:"description"`
-	StartDatetime time.Time  `json:"start_datetime"`
-	EndDatetime   *time.Time `json:"end_datetime"`
-	Type          string     `json:"type"` // e.g., "class", "meeting", "appointment"
-	CreatedAt     time.Time  `json:"created_at"`
+	ID                string     `json:"id"`
+	Title             string     `json:"title"`
+	Description       string     `json:"description"`
+	StartDatetime     time.Time  `json:"start_datetime"`
+	EndDatetime       *time.Time `json:"end_datetime"`
+	Type              string     `json:"type"` // e.g., "class", "meeting", "appointment"
+	RecurrenceRule    string     `json:"recurrence_rule"`
+	RecurrenceEndDate *time.Time `json:"recurrence_end_date"`
+	CreatedAt         time.Time  `json:"created_at"`
 }
 
 // NewEvent creates a new event with default values

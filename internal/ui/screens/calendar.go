@@ -74,7 +74,8 @@ func (m CalendarScreen) fetchCalendarItemsCmd() tea.Cmd {
 			items = append(items, &task)
 		}
 		for _, event := range events {
-			items = append(items, &event)
+			e := event
+			items = append(items, &e)
 		}
 
 		return calendarItemsFetchedMsg(items)

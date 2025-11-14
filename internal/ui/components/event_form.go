@@ -12,12 +12,14 @@ import (
 
 // EventForm is a form for creating/editing events
 type EventForm struct {
-	originalEvent      *models.Event
-	eventID            string // ID of the event being edited (empty if new event)
-	titleInput         Input
-	descriptionInput   TextArea
-	startDateTimeInput Input
-	endDateTimeInput   Input
+	originalEvent        *models.Event
+	eventID              string // ID of the event being edited (empty if new event)
+	titleInput           Input
+	descriptionInput     TextArea
+	startDateTimeInput   Input
+	endDateTimeInput     Input
+	recurrenceRuleInput  Input
+	recurrenceEndDateInput Input
 
 	// Focus tracking
 	focusedField int
@@ -33,6 +35,8 @@ const (
 	eventFieldDescription
 	eventFieldStartDateTime
 	eventFieldEndDateTime
+	eventFieldRecurrenceRule
+	eventFieldRecurrenceEndDate
 	eventFieldButtons
 )
 
@@ -42,15 +46,19 @@ func NewEventForm(event *models.Event) EventForm {
 	descriptionInput := NewTextArea("Description:", "Enter event description...")
 	startDateTimeInput := NewInput("Start Time:", "YYYY-MM-DD HH:MM")
 	endDateTimeInput := NewInput("End Time (optional):", "YYYY-MM-DD HH:MM")
+	recurrenceRuleInput := NewInput("Recurrence:", "none, daily, weekly, monthly")
+	recurrenceEndDateInput := NewInput("Recurrence End Date:", "YYYY-MM-DD")
 
 	form := EventForm{
-		titleInput:         titleInput,
-		descriptionInput:   descriptionInput,
-		startDateTimeInput: startDateTimeInput,
-		endDateTimeInput:   endDateTimeInput,
-		focusedField:       eventFieldTitle,
-		width:              60,
-		height:             20,
+		titleInput:           titleInput,
+		descriptionInput:     descriptionInput,
+		startDateTimeInput:   startDateTimeInput,
+		endDateTimeInput:     endDateTimeInput,
+		recurrenceRuleInput:  recurrenceRuleInput,
+		recurrenceEndDateInput: recurrenceEndDateInput,
+		focusedField:         eventFieldTitle,
+		width:                60,
+		height:               20,
 	}
 
 	// If an event is provided, pre-fill the form fields
@@ -62,6 +70,10 @@ func NewEventForm(event *models.Event) EventForm {
 		form.startDateTimeInput.SetValue(event.StartDatetime.Format("2006-01-02 15:04"))
 		if event.EndDatetime != nil {
 			form.endDateTimeInput.SetValue(event.EndDatetime.Format("2006-01-02 15:04"))
+		}
+		form.recurrenceRuleInput.SetValue(event.RecurrenceRule)
+		if event.RecurrenceEndDate != nil {
+			form.recurrenceEndDateInput.SetValue(event.RecurrenceEndDate.Format("2006-01-02"))
 		}
 	}
 
@@ -91,14 +103,14 @@ func (f EventForm) Update(msg tea.Msg) (EventForm, tea.Cmd) {
 		case "tab", "down":
 			// Move to next field
 			f.blurAll()
-			f.focusedField = (f.focusedField + 1) % 5
+			f.focusedField = (f.focusedField + 1) % 7
 			cmd = f.focusField(f.focusedField)
 			return f, cmd
 
 		case "shift+tab", "up":
 			// Move to previous field
 			f.blurAll()
-			f.focusedField = (f.focusedField + 4) % 5
+			f.focusedField = (f.focusedField + 6) % 7
 			cmd = f.focusField(f.focusedField)
 			return f, cmd
 
@@ -124,6 +136,10 @@ func (f EventForm) Update(msg tea.Msg) (EventForm, tea.Cmd) {
 		cmd = f.startDateTimeInput.Update(msg)
 	case eventFieldEndDateTime:
 		cmd = f.endDateTimeInput.Update(msg)
+	case eventFieldRecurrenceRule:
+		cmd = f.recurrenceRuleInput.Update(msg)
+	case eventFieldRecurrenceEndDate:
+		cmd = f.recurrenceEndDateInput.Update(msg)
 	}
 
 	return f, cmd
@@ -157,6 +173,14 @@ func (f EventForm) View() string {
 
 	// End date/time input
 	sections = append(sections, f.endDateTimeInput.View())
+	sections = append(sections, "")
+
+	// Recurrence rule input
+	sections = append(sections, f.recurrenceRuleInput.View())
+	sections = append(sections, "")
+
+	// Recurrence end date input
+	sections = append(sections, f.recurrenceEndDateInput.View())
 	sections = append(sections, "")
 
 	// Buttons
@@ -224,6 +248,8 @@ func (f *EventForm) blurAll() {
 	f.descriptionInput.Blur()
 	f.startDateTimeInput.Blur()
 	f.endDateTimeInput.Blur()
+	f.recurrenceRuleInput.Blur()
+	f.recurrenceEndDateInput.Blur()
 }
 
 // focusField focuses a specific field
@@ -237,6 +263,10 @@ func (f *EventForm) focusField(field int) tea.Cmd {
 		return f.startDateTimeInput.Focus()
 	case eventFieldEndDateTime:
 		return f.endDateTimeInput.Focus()
+	case eventFieldRecurrenceRule:
+		return f.recurrenceRuleInput.Focus()
+	case eventFieldRecurrenceEndDate:
+		return f.recurrenceEndDateInput.Focus()
 	}
 	return nil
 }
@@ -273,6 +303,17 @@ func (f EventForm) GetEvent() *models.Event {
 		}
 	} else {
 		event.EndDatetime = nil
+	}
+
+	// Recurrence
+	event.RecurrenceRule = f.recurrenceRuleInput.Value()
+	recurrenceEndDateStr := strings.TrimSpace(f.recurrenceEndDateInput.Value())
+	if recurrenceEndDateStr != "" {
+		if recurrenceEndDate, err := time.ParseInLocation("2006-01-02", recurrenceEndDateStr, time.Local); err == nil {
+			event.RecurrenceEndDate = &recurrenceEndDate
+		}
+	} else {
+		event.RecurrenceEndDate = nil
 	}
 
 	return event
