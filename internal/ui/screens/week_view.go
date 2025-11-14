@@ -433,11 +433,28 @@ func (w *WeekView) renderWeekGrid() string {
 	}
 
 	// Render rows with half-hour intervals
+	now := time.Now()
+	currentHour := now.Hour()
+	currentMinute := now.Minute()
+	
 	for hour := startRow; hour <= endRow; hour++ {
 		// Full hour (e.g., 09:00)
 		rows = append(rows, w.renderTimeRow(hour, 0, dayColWidth))
+		
+		// Add NOW line if current time is between :00 and :29
+		if hour == currentHour && currentMinute >= 0 && currentMinute < 30 {
+			nowLine := w.renderNowLine(dayColWidth, currentHour, currentMinute)
+			rows = append(rows, nowLine)
+		}
+		
 		// Half hour (e.g., 09:30)
 		rows = append(rows, w.renderTimeRow(hour, 30, dayColWidth))
+		
+		// Add NOW line if current time is between :30 and :59
+		if hour == currentHour && currentMinute >= 30 {
+			nowLine := w.renderNowLine(dayColWidth, currentHour, currentMinute)
+			rows = append(rows, nowLine)
+		}
 	}
 
 	grid := lipgloss.JoinVertical(lipgloss.Left, rows...)
@@ -531,6 +548,33 @@ func (w *WeekView) renderTimeRow(hour, minute, dayColWidth int) string {
 	rowContent := lipgloss.JoinHorizontal(lipgloss.Top, timeCell, separator, strings.Join(dayCells, ""))
 
 	return rowContent
+}
+
+// renderNowLine renders the current time indicator line
+func (w *WeekView) renderNowLine(dayColWidth, currentHour, currentMinute int) string {
+	nowStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#E82424")).
+		Bold(true)
+	
+	// Time indicator
+	timeStr := fmt.Sprintf("▶%02d:%02d", currentHour, currentMinute)
+	timeCell := lipgloss.NewStyle().
+		Width(6).
+		Align(lipgloss.Right).
+		Foreground(lipgloss.Color("#E82424")).
+		Bold(true).
+		Render(timeStr)
+	
+	// Separator
+	separator := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#E82424")).
+		Render("│")
+	
+	// Line across all days
+	totalWidth := dayColWidth * 7
+	nowLine := nowStyle.Render(strings.Repeat("─", totalWidth))
+	
+	return lipgloss.JoinHorizontal(lipgloss.Top, timeCell, separator, nowLine)
 }
 
 // renderDayCell renders a single cell (day x hour x minute)

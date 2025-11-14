@@ -408,6 +408,13 @@ func (d *DayView) renderTimeline(width int) string {
 	var rows []string
 
 	// Render hours with events
+	now := time.Now()
+	isToday := now.Year() == d.currentDate.Year() && 
+	           now.Month() == d.currentDate.Month() && 
+	           now.Day() == d.currentDate.Day()
+	currentHour := now.Hour()
+	currentMinute := now.Minute()
+	
 	for hour := d.startHour; hour <= d.endHour; hour++ {
 		for _, minute := range []int{0, 30} {
 			timeStr := fmt.Sprintf("%02d:%02d", hour, minute)
@@ -433,6 +440,21 @@ func (d *DayView) renderTimeline(width int) string {
 			
 			row := timeStyle.Render(timeStr) + separator + eventContent
 			rows = append(rows, row)
+			
+			// Add NOW line if this is today and we're between time slots
+			if isToday && hour == currentHour && minute == 0 && currentMinute >= 0 && currentMinute < 30 {
+				nowLineStyle := lipgloss.NewStyle().
+					Foreground(lipgloss.Color("#E82424")).
+					Bold(true)
+				nowLine := nowLineStyle.Render(fmt.Sprintf("      ▶ ───────── NOW: %02d:%02d ─────────", currentHour, currentMinute))
+				rows = append(rows, nowLine)
+			} else if isToday && hour == currentHour && minute == 30 && currentMinute >= 30 {
+				nowLineStyle := lipgloss.NewStyle().
+					Foreground(lipgloss.Color("#E82424")).
+					Bold(true)
+				nowLine := nowLineStyle.Render(fmt.Sprintf("      ▶ ───────── NOW: %02d:%02d ─────────", currentHour, currentMinute))
+				rows = append(rows, nowLine)
+			}
 		}
 	}
 
