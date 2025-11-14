@@ -173,6 +173,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						// Don't enter command mode if week view event form is active
 						break
 					}
+					// Check if day view is active and has event form active
+					if calendar.IsDayViewActive() && calendar.IsDayViewEventFormActive() {
+						// Don't enter command mode if day view event form is active
+						break
+					}
 				}
 			}
 			// Enter command mode

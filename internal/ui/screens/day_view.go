@@ -9,37 +9,45 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/stiffis/UniCLI/internal/database"
 	"github.com/stiffis/UniCLI/internal/models"
+	"github.com/stiffis/UniCLI/internal/ui/components"
 	"github.com/stiffis/UniCLI/internal/ui/styles"
 )
 
 // DayView represents the daily timeline view
 type DayView struct {
-	db               *database.DB
-	currentDate      time.Time
-	width            int
-	height           int
-	events           []models.Event
-	tasks            []models.Task
-	categories       []models.Category
-	selectedHour     int // 0-23
-	selectedMinute   int // 0 or 30
-	startHour        int // First hour to display (default 6)
-	endHour          int // Last hour to display (default 22)
-	scrollOffset     int
-	err              error
-	errorMessage     string
+	db                  *database.DB
+	currentDate         time.Time
+	width               int
+	height              int
+	events              []models.Event
+	tasks               []models.Task
+	categories          []models.Category
+	selectedHour        int // 0-23
+	selectedMinute      int // 0 or 30
+	startHour           int // First hour to display (default 6)
+	endHour             int // Last hour to display (default 22)
+	scrollOffset        int
+	err                 error
+	errorMessage        string
+	showEventForm       bool
+	eventForm           components.EventForm
+	selectedEventID     string
+	showDeleteConfirm   bool
+	showCategoryManager bool
+	categoryManager     *components.CategoryManager
 }
 
 // NewDayView creates a new day view for the given date
 func NewDayView(db *database.DB, date time.Time) *DayView {
 	return &DayView{
-		db:           db,
-		currentDate:  date,
-		selectedHour: 9,
-		selectedMinute: 0,
-		startHour:    6,
-		endHour:      22,
-		scrollOffset: 0,
+		db:              db,
+		currentDate:     date,
+		selectedHour:    9,
+		selectedMinute:  0,
+		startHour:       6,
+		endHour:         22,
+		scrollOffset:    0,
+		categoryManager: components.NewCategoryManager(db),
 	}
 }
 
@@ -112,6 +120,42 @@ type dayTasksFetchedMsg []models.Task
 
 // Update handles messages
 func (d *DayView) Update(msg tea.Msg) (*DayView, tea.Cmd) {
+	var cmd tea.Cmd
+	
+	// Handle delete confirmation dialog
+	if d.showDeleteConfirm {
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			switch msg.String() {
+			case "y", "Y":
+				d.showDeleteConfirm = false
+				if d.selectedEventID != "" {
+					return d, d.deleteEvent(d.selectedEventID)
+				}
+			case "n", "N", "esc":
+				d.showDeleteConfirm = false
+			}
+		}
+		return d, nil
+	}
+	
+	// Handle event form
+	if d.showEventForm {
+		d.eventForm, cmd = d.eventForm.Update(msg)
+		if d.eventForm.IsSubmitted() {
+			event := d.eventForm.GetEvent()
+			d.showEventForm = false
+			if d.eventForm.IsNewEvent() {
+				return d, d.createEvent(event)
+			} else {
+				return d, d.updateEvent(event)
+			}
+		} else if d.eventForm.IsCancelled() {
+			d.showEventForm = false
+		}
+		return d, cmd
+	}
+	
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		d.width = msg.Width
@@ -120,6 +164,50 @@ func (d *DayView) Update(msg tea.Msg) (*DayView, tea.Cmd) {
 	case tea.KeyMsg:
 		// Navigation keys
 		switch msg.String() {
+		case "n":
+			// New event at selected slot
+			d.showEventForm = true
+			startTime := time.Date(d.currentDate.Year(), d.currentDate.Month(), d.currentDate.Day(),
+				d.selectedHour, d.selectedMinute, 0, 0, d.currentDate.Location())
+			event := &models.Event{
+				ID:            "",
+				StartDatetime: startTime,
+				Type:          "event",
+				CreatedAt:     time.Now(),
+			}
+			endTime := startTime.Add(1 * time.Hour)
+			event.EndDatetime = &endTime
+			d.eventForm = components.NewEventForm(event, d.categories)
+			return d, nil
+			
+		case "e":
+			// Edit event at selected slot
+			eventID := d.getEventAtSlot(d.selectedHour, d.selectedMinute)
+			if eventID != "" {
+				d.selectedEventID = eventID
+				var eventToEdit *models.Event
+				for i := range d.events {
+					if d.events[i].ID == eventID {
+						eventToEdit = &d.events[i]
+						break
+					}
+				}
+				if eventToEdit != nil {
+					d.showEventForm = true
+					d.eventForm = components.NewEventForm(eventToEdit, d.categories)
+				}
+			}
+			return d, nil
+			
+		case "d":
+			// Delete event at selected slot
+			eventID := d.getEventAtSlot(d.selectedHour, d.selectedMinute)
+			if eventID != "" {
+				d.selectedEventID = eventID
+				d.showDeleteConfirm = true
+			}
+			return d, nil
+			
 		case "j", "down":
 			// Move down by 30 minutes
 			if d.selectedMinute == 0 {
@@ -180,10 +268,66 @@ func (d *DayView) Update(msg tea.Msg) (*DayView, tea.Cmd) {
 	return d, nil
 }
 
+// getEventAtSlot returns the ID of an event at the given time slot
+func (d *DayView) getEventAtSlot(hour, minute int) string {
+	slotMinute := hour*60 + minute
+	
+	for _, event := range d.events {
+		eventStartMinute := event.StartDatetime.Hour()*60 + event.StartDatetime.Minute()
+		
+		var eventEndMinute int
+		if event.EndDatetime != nil {
+			eventEndMinute = event.EndDatetime.Hour()*60 + event.EndDatetime.Minute()
+		} else {
+			eventEndMinute = eventStartMinute + 60
+		}
+		
+		if slotMinute >= eventStartMinute && slotMinute < eventEndMinute {
+			return event.ID
+		}
+	}
+	return ""
+}
+
+func (d *DayView) createEvent(event *models.Event) tea.Cmd {
+	return func() tea.Msg {
+		err := d.db.Events().Create(event)
+		if err != nil {
+			return errMsg{err}
+		}
+		return d.fetchDayEvents()()
+	}
+}
+
+func (d *DayView) updateEvent(event *models.Event) tea.Cmd {
+	return func() tea.Msg {
+		err := d.db.Events().Update(event)
+		if err != nil {
+			return errMsg{err}
+		}
+		return d.fetchDayEvents()()
+	}
+}
+
+func (d *DayView) deleteEvent(eventID string) tea.Cmd {
+	return func() tea.Msg {
+		err := d.db.Events().Delete(eventID)
+		if err != nil {
+			return errMsg{err}
+		}
+		return d.fetchDayEvents()()
+	}
+}
+
 // View renders the day view
 func (d *DayView) View() string {
 	if d.width == 0 || d.height == 0 {
 		return "Initializing day view..."
+	}
+	
+	// Show event form if active
+	if d.showEventForm {
+		return d.eventForm.View()
 	}
 
 	// Calculate panel widths - make it more compact
@@ -217,11 +361,35 @@ func (d *DayView) View() string {
 	// Shortcuts
 	shortcuts := d.renderShortcuts()
 
-	return lipgloss.JoinVertical(
+	mainView := lipgloss.JoinVertical(
 		lipgloss.Left,
 		title,
 		content,
 		shortcuts,
+	)
+	
+	// Show delete confirmation dialog if active
+	if d.showDeleteConfirm {
+		return d.renderDeleteConfirmDialog(mainView)
+	}
+	
+	return mainView
+}
+
+// renderDeleteConfirmDialog renders the delete confirmation dialog
+func (d *DayView) renderDeleteConfirmDialog(mainView string) string {
+	dialog := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(styles.Warning).
+		Padding(1, 2).
+		Render("Are you sure you want to delete this event?\n\n[y] Yes  [n] No")
+
+	return lipgloss.Place(
+		d.width,
+		d.height,
+		lipgloss.Center,
+		lipgloss.Center,
+		lipgloss.JoinVertical(lipgloss.Center, mainView, dialog),
 	)
 }
 
@@ -415,11 +583,20 @@ func (d *DayView) renderTasks(width int) string {
 			checkbox = "☑"
 		}
 		
-		// Priority indicator
-		priorityColor := styles.PriorityColor(string(task.Priority))
-		priority := lipgloss.NewStyle().
-			Foreground(priorityColor).
-			Render(string(task.Priority)[0:1])
+		// Priority indicator with emoji
+		var priorityEmoji string
+		switch task.Priority {
+		case models.TaskPriorityUrgent:
+			priorityEmoji = "☠️" // Skull for urgent
+		case models.TaskPriorityHigh:
+			priorityEmoji = "🔴" // Red circle for high
+		case models.TaskPriorityMedium:
+			priorityEmoji = "💛" // Yellow heart for medium
+		case models.TaskPriorityLow:
+			priorityEmoji = "🤍" // White heart for low
+		default:
+			priorityEmoji = "⚪" // White circle for none/default
+		}
 		
 		// Truncate title if too long
 		title := task.Title
@@ -428,7 +605,7 @@ func (d *DayView) renderTasks(width int) string {
 			title = title[:maxLen-3] + "..."
 		}
 		
-		taskLine := fmt.Sprintf("%s %s (%s)", checkbox, title, priority)
+		taskLine := fmt.Sprintf("%s %s %s", checkbox, title, priorityEmoji)
 		taskLines = append(taskLines, taskLine)
 	}
 
@@ -446,6 +623,8 @@ func (d *DayView) renderShortcuts() string {
 		styles.Shortcut.Render("h/l") + styles.ShortcutText.Render(" prev/next day"),
 		styles.Shortcut.Render("j/k") + styles.ShortcutText.Render(" navigate time"),
 		styles.Shortcut.Render("n") + styles.ShortcutText.Render(" new event"),
+		styles.Shortcut.Render("e") + styles.ShortcutText.Render(" edit"),
+		styles.Shortcut.Render("d") + styles.ShortcutText.Render(" delete"),
 		styles.Shortcut.Render("esc") + styles.ShortcutText.Render(" back"),
 	}
 

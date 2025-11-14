@@ -146,6 +146,17 @@ func (m CalendarScreen) IsWeekViewEventFormActive() bool {
 	return false
 }
 
+func (m CalendarScreen) IsDayViewActive() bool {
+	return m.showDayView
+}
+
+func (m CalendarScreen) IsDayViewEventFormActive() bool {
+	if m.showDayView && m.dayView != nil {
+		return m.dayView.showEventForm
+	}
+	return false
+}
+
 // Update handles messages and updates the calendar screen model
 func (m CalendarScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
@@ -183,10 +194,14 @@ func (m CalendarScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	if m.showDayView {
 		// Check for escape key to return to month view
+		// BUT only if no forms are active in day view
 		if keyMsg, ok := msg.(tea.KeyMsg); ok {
 			if keyMsg.String() == "esc" {
-				m.showDayView = false
-				return m, m.fetchCalendarItemsCmd()
+				// Only exit to month view if no forms are active
+				if !m.dayView.showEventForm && !m.dayView.showCategoryManager && !m.dayView.showDeleteConfirm {
+					m.showDayView = false
+					return m, m.fetchCalendarItemsCmd()
+				}
 			}
 		}
 		

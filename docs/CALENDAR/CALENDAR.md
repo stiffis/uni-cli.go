@@ -12,6 +12,3 @@ The calendar feature provides a monthly view of tasks and events.
 
 ## TODO
 
-- Improve day detail sub-view
-- Add weekly view
-- Better event management
