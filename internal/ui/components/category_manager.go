@@ -235,6 +235,16 @@ func (m *CategoryManager) View() string {
 	case modeForm:
 		return m.form.View()
 	default:
+		var sections []string
+
+		// Title inside the box
+		title := styles.Title.
+			Align(lipgloss.Center).
+			Render(" Categories")
+		sections = append(sections, title)
+		sections = append(sections, "")
+
+		// Categories list
 		var b strings.Builder
 		for i, item := range m.list.Items() {
 			m.delegate.Render(&b, m.list, i, item)
@@ -242,13 +252,15 @@ func (m *CategoryManager) View() string {
 				b.WriteString("\n")
 			}
 		}
+		sections = append(sections, b.String())
 
 		boxStyle := lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(styles.Primary).
-			Padding(3, 6)
+			Padding(2, 4)
 
-		return lipgloss.JoinVertical(lipgloss.Left, boxStyle.Render(b.String()), m.renderShortcuts())
+		content := lipgloss.JoinVertical(lipgloss.Left, sections...)
+		return lipgloss.JoinVertical(lipgloss.Left, boxStyle.Render(content), m.renderShortcuts())
 	}
 }
 
