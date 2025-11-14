@@ -19,7 +19,6 @@ func NewCourseRepository(db *sql.DB) *CourseRepository {
 	return &CourseRepository{db: db}
 }
 
-// Create creates a new course
 func (r *CourseRepository) Create(course *models.Course) error {
 	query := `
 		INSERT INTO courses (id, name, code, professor, location, semester, credits, color, description, created_at, updated_at)
@@ -42,7 +41,6 @@ func (r *CourseRepository) Create(course *models.Course) error {
 		return fmt.Errorf("failed to create course: %w", err)
 	}
 
-	// Create schedules
 	for i := range course.Schedule {
 		course.Schedule[i].CourseID = course.ID // Assign CourseID
 		if err := r.CreateSchedule(&course.Schedule[i]); err != nil {
@@ -53,7 +51,6 @@ func (r *CourseRepository) Create(course *models.Course) error {
 	return nil
 }
 
-// Update updates an existing course
 func (r *CourseRepository) Update(course *models.Course) error {
 	course.UpdatedAt = time.Now()
 
@@ -79,7 +76,6 @@ func (r *CourseRepository) Update(course *models.Course) error {
 		return fmt.Errorf("failed to update course: %w", err)
 	}
 
-	// Delete existing schedules and recreate
 	if err := r.DeleteSchedules(course.ID); err != nil {
 		return err
 	}
@@ -94,7 +90,6 @@ func (r *CourseRepository) Update(course *models.Course) error {
 	return nil
 }
 
-// Delete deletes a course
 func (r *CourseRepository) Delete(id string) error {
 	query := "DELETE FROM courses WHERE id = ?"
 	_, err := r.db.Exec(query, id)
@@ -132,7 +127,6 @@ func (r *CourseRepository) GetByID(id string) (*models.Course, error) {
 		return nil, fmt.Errorf("failed to get course: %w", err)
 	}
 
-	// Load schedules
 	schedules, err := r.GetSchedules(course.ID)
 	if err != nil {
 		return nil, err
@@ -175,7 +169,6 @@ func (r *CourseRepository) GetAll() ([]models.Course, error) {
 			return nil, fmt.Errorf("failed to scan course: %w", err)
 		}
 
-		// Load schedules
 		schedules, err := r.GetSchedules(course.ID)
 		if err != nil {
 			return nil, err
@@ -222,7 +215,6 @@ func (r *CourseRepository) GetBySemester(semester string) ([]models.Course, erro
 			return nil, fmt.Errorf("failed to scan course: %w", err)
 		}
 
-		// Load schedules
 		schedules, err := r.GetSchedules(course.ID)
 		if err != nil {
 			return nil, err

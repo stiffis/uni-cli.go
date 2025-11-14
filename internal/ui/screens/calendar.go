@@ -13,7 +13,6 @@ import (
 	"github.com/stiffis/UniCLI/internal/ui/styles"
 )
 
-// CalendarScreen is the model for the calendar view
 type CalendarScreen struct {
 	db                  *database.DB
 	currentDate         time.Time
@@ -36,7 +35,6 @@ type CalendarScreen struct {
 	dayView             *DayView
 }
 
-// NewCalendarScreen creates a new model for the calendar view
 func NewCalendarScreen(db *database.DB) tea.Model {
 	now := time.Now()
 	return CalendarScreen{
@@ -47,23 +45,19 @@ func NewCalendarScreen(db *database.DB) tea.Model {
 	}
 }
 
-// Init initializes the calendar screen
 func (m CalendarScreen) Init() tea.Cmd {
 	return tea.Batch(m.fetchCalendarItemsCmd(), m.fetchCategoriesCmd())
 }
 
-// fetchCalendarItemsCmd is a tea.Cmd that fetches tasks and events for the current month
 func (m CalendarScreen) fetchCalendarItemsCmd() tea.Cmd {
 	return func() tea.Msg {
 		year, month := m.currentDate.Year(), m.currentDate.Month()
 
-		// Fetch tasks
-		tasks, err := m.db.Tasks().FindAll() // Assuming FindAll can be filtered by month later
+		tasks, err := m.db.Tasks().FindAll()
 		if err != nil {
 			return errMsg{err}
 		}
 
-		// Filter tasks by due date within the current month
 		var monthTasks []models.Task
 		for _, task := range tasks {
 			if task.DueDate != nil && task.DueDate.Year() == year && task.DueDate.Month() == month {
@@ -71,7 +65,6 @@ func (m CalendarScreen) fetchCalendarItemsCmd() tea.Cmd {
 			}
 		}
 
-		// Fetch events (including course classes)
 		events, err := m.db.Events().GetEventsWithCoursesForMonth(year, month, m.db.Courses())
 		if err != nil {
 			return errMsg{err}
@@ -100,11 +93,9 @@ func (m CalendarScreen) fetchCategoriesCmd() tea.Cmd {
 	}
 }
 
-// calendarItemsFetchedMsg is a message sent when calendar items are fetched
 type calendarItemsFetchedMsg []models.CalendarItem
 type categoriesFetchedMsg []models.Category
 
-// errMsg is a message for errors
 type errMsg struct {
 	err error
 }
@@ -157,7 +148,6 @@ func (m CalendarScreen) IsDayViewEventFormActive() bool {
 	return false
 }
 
-// Update handles messages and updates the calendar screen model
 func (m CalendarScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
@@ -172,11 +162,8 @@ func (m CalendarScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if m.showWeekView {
-		// Check for escape key to return to month view
-		// BUT only if no form is active in week view
 		if keyMsg, ok := msg.(tea.KeyMsg); ok {
 			if keyMsg.String() == "esc" {
-				// Only exit to month view if no forms are active
 				if !m.weekView.showEventForm && !m.weekView.showCategoryManager && !m.weekView.showDeleteConfirm {
 					m.showWeekView = false
 					return m, m.fetchCalendarItemsCmd()
@@ -184,7 +171,6 @@ func (m CalendarScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		
-		// Pass all messages to week view
 		var newWeekView *WeekView
 		newWeekView, cmd = m.weekView.Update(msg)
 		m.weekView = newWeekView
@@ -193,11 +179,8 @@ func (m CalendarScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if m.showDayView {
-		// Check for escape key to return to month view
-		// BUT only if no forms are active in day view
 		if keyMsg, ok := msg.(tea.KeyMsg); ok {
 			if keyMsg.String() == "esc" {
-				// Only exit to month view if no forms are active
 				if !m.dayView.showEventForm && !m.dayView.showCategoryManager && !m.dayView.showDeleteConfirm {
 					m.showDayView = false
 					return m, m.fetchCalendarItemsCmd()
@@ -205,7 +188,6 @@ func (m CalendarScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		
-		// Pass all messages to day view
 		var newDayView *DayView
 		newDayView, cmd = m.dayView.Update(msg)
 		m.dayView = newDayView
@@ -297,7 +279,6 @@ func (m CalendarScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		oldMonth := m.currentDate.Month()
 		switch msg.String() {
 		case "s":
-			// Switch to week view
 			m.showWeekView = true
 			m.weekView = NewWeekView(m.db, m.currentDate)
 			m.weekView.width = m.width
@@ -309,21 +290,20 @@ func (m CalendarScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.categoryManager.SetSize(m.width, m.height)
 			return m, m.categoryManager.Init()
 		case "H":
-			m.currentDate = m.currentDate.AddDate(0, -1, 0) // Go back one month
+			m.currentDate = m.currentDate.AddDate(0, -1, 0)
 		case "L":
-			m.currentDate = m.currentDate.AddDate(0, 1, 0) // Go forward one month
+			m.currentDate = m.currentDate.AddDate(0, 1, 0)
 		case "h":
-			m.selectedDay = max(1, m.selectedDay-1) // Move left one day
+			m.selectedDay = max(1, m.selectedDay-1)
 		case "l":
 			lastOfMonth := time.Date(m.currentDate.Year(), m.currentDate.Month(), 1, 0, 0, 0, 0, m.currentDate.Location()).AddDate(0, 1, -1).Day()
-			m.selectedDay = min(lastOfMonth, m.selectedDay+1) // Move right one day
+			m.selectedDay = min(lastOfMonth, m.selectedDay+1)
 		case "k":
-			m.selectedDay = max(1, m.selectedDay-7) // Move up one week
+			m.selectedDay = max(1, m.selectedDay-7)
 		case "j":
 			lastOfMonth := time.Date(m.currentDate.Year(), m.currentDate.Month(), 1, 0, 0, 0, 0, m.currentDate.Location()).AddDate(0, 1, -1).Day()
-			m.selectedDay = min(lastOfMonth, m.selectedDay+7) // Move down one week
+			m.selectedDay = min(lastOfMonth, m.selectedDay+7)
 		case "enter":
-			// Open day view instead of simple details
 			selectedDate := time.Date(m.currentDate.Year(), m.currentDate.Month(), m.selectedDay, 0, 0, 0, 0, m.currentDate.Location())
 			m.showDayView = true
 			m.dayView = NewDayView(m.db, selectedDate)
@@ -331,17 +311,14 @@ func (m CalendarScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.dayView.height = m.height
 			return m, m.dayView.Init()
 		case "esc":
-			// Handle escape key if needed for this screen
 		}
 		if m.currentDate.Month() != oldMonth {
-			// If month changed, ensure selectedDay is valid for the new month
 			lastOfMonth := time.Date(m.currentDate.Year(), m.currentDate.Month(), 1, 0, 0, 0, 0, m.currentDate.Location()).AddDate(0, 1, -1).Day()
 			m.selectedDay = min(m.selectedDay, lastOfMonth)
-			return m, m.fetchCalendarItemsCmd() // Re-fetch items if month changed
+			return m, m.fetchCalendarItemsCmd()
 		}
 	case calendarItemsFetchedMsg:
 		m.calendarItems = msg
-		// Populate category for each event
 		for _, item := range m.calendarItems {
 			if event, ok := item.(*models.Event); ok {
 				for _, category := range m.categories {
@@ -357,8 +334,7 @@ func (m CalendarScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.categories = msg
 		return m, nil
 	case errMsg:
-		// Handle error, e.g., display an error message
-		return m, tea.Quit // For now, just quit on error
+		return m, tea.Quit
 	}
 	return m, nil
 }
@@ -383,7 +359,6 @@ func (m CalendarScreen) updateEvent(event *models.Event) tea.Cmd {
 	}
 }
 
-// View renders the calendar screen
 func (m CalendarScreen) View() string {
 	if m.width == 0 || m.height == 0 {
 		return "Initializing calendar..."
@@ -450,13 +425,11 @@ func (m CalendarScreen) renderDeleteConfirmDialog(baseView string) string {
 }
 
 func (m CalendarScreen) renderCalendar() string {
-	// Use a portion of the full width for the calendar
 	containerWidth := m.width - 18
 	if containerWidth < 40 { // Minimum width for the calendar grid
 		containerWidth = 40
 	}
 
-	// Header for month and year
 	title := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(styles.Primary).
@@ -464,11 +437,8 @@ func (m CalendarScreen) renderCalendar() string {
 		Width(containerWidth).
 		Render(m.currentDate.Format("January 2006"))
 
-	// Days of the week header
 	weekdays := []string{"Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"}
 	
-	// Calculate cell width (accounting for borders)
-	// Each cell has 2 border characters (left and right), so we need to account for that
 	baseCellWidth := (containerWidth - 14) / 7 // 14 = 2 borders * 7 cells
 	if baseCellWidth < 4 {
 		baseCellWidth = 4
@@ -482,7 +452,6 @@ func (m CalendarScreen) renderCalendar() string {
 	lastOfMonth := firstOfMonth.AddDate(0, 1, -1)
 	firstWeekday := (int(firstOfMonth.Weekday()) + 6) % 7
 
-	// Create a cell style with borders
 	cellStyle := lipgloss.NewStyle().
 		Border(lipgloss.NormalBorder(), true).
 		BorderForeground(styles.Muted).
@@ -490,7 +459,6 @@ func (m CalendarScreen) renderCalendar() string {
 		Height(3). // 1 line for content + 2 for borders
 		Align(lipgloss.Center)
 	
-	// Create weekday header style to match cell width INCLUDING borders
 	// The header cells should have the same total width as calendar cells (content + borders)
 	weekdayStyle := lipgloss.NewStyle().
 		Bold(true).
@@ -515,7 +483,6 @@ func (m CalendarScreen) renderCalendar() string {
 		dayContent := fmt.Sprintf("%d", day)
 		var iconContent string
 
-		// Add icons for tasks and events
 		var icons []string
 		for _, item := range m.calendarItems {
 			if item.GetStartTime().Day() == day && item.GetStartTime().Month() == m.currentDate.Month() {
@@ -526,7 +493,6 @@ func (m CalendarScreen) renderCalendar() string {
 					color = styles.Info
 				} else if event, ok := item.(*models.Event); ok {
 					icon = ""
-					// Get color - either from category or from course
 					if event.Type == "class" && strings.HasPrefix(event.CategoryID, "course_") {
 						// This is a course class, get color from course
 						courseID := strings.TrimPrefix(event.CategoryID, "course_")
@@ -593,7 +559,6 @@ func (m CalendarScreen) renderCalendar() string {
 func (m CalendarScreen) renderDayDetails() string {
 	itemsForSelectedDay := m.getItemsForSelectedDay()
 
-	// Build details content
 	var detailsContent string
 	if len(itemsForSelectedDay) > 0 {
 		var itemStrings []string
@@ -605,7 +570,6 @@ func (m CalendarScreen) renderDayDetails() string {
 				itemString = fmt.Sprintf("%s %s", icon, item.GetTitle())
 			} else if event, ok := item.(*models.Event); ok {
 				var color lipgloss.Color
-			// Get color - either from category or from course
 			if event.Type == "class" && strings.HasPrefix(event.CategoryID, "course_") {
 				// This is a course class, get color from course
 				courseID := strings.TrimPrefix(event.CategoryID, "course_")

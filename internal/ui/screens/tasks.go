@@ -82,7 +82,6 @@ func (s *TaskScreen) Init() tea.Cmd {
 	return s.loadTasks()
 }
 
-// Update handles messages
 func (s *TaskScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
@@ -160,7 +159,6 @@ func (s *TaskScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return s, nil
 
 	case subtaskToggledMsg, subtaskCreatedMsg, subtaskDeletedMsg:
-		// Handle errors, but stay in the details view
 		// The message types would need an `error` field for this to be useful
 		return s, s.loadTasks()
 
@@ -357,7 +355,6 @@ func (s *TaskScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return s, nil
 }
 
-// View renders the task screen
 func (s *TaskScreen) View() string {
 	// Show loading state
 	if s.loading {
@@ -612,7 +609,6 @@ func (s *TaskScreen) renderDetailsView() string {
 		}
 	}
 
-	// Render subtask input if creating
 	if s.isCreatingSubtask {
 		b.WriteString("\n" + s.subtaskInput.View())
 	}
@@ -639,19 +635,16 @@ func (s *TaskScreen) renderDetailsView() string {
 
 // renderKanban renders the kanban board
 func (s *TaskScreen) renderKanban() string {
-	// Get tasks for each column
 	todoTasks := s.getTasksForColumn(ColumnTodo)
 	inProgressTasks := s.getTasksForColumn(ColumnInProgress)
 	doneTasks := s.getTasksForColumn(ColumnDone)
 
 	// Calculate column width (divide available width by 3, minus borders and spacing)
-	// Add 3 extra characters per column for more width
 	columnWidth := ((s.width - 10) / 3) + 3
 	if columnWidth < 23 {
 		columnWidth = 23
 	}
 
-	// Render each column
 	todoColumn := s.renderColumn("To Do", todoTasks, ColumnTodo, columnWidth)
 	inProgressColumn := s.renderColumn("In Progress", inProgressTasks, ColumnInProgress, columnWidth)
 	doneColumn := s.renderColumn("Done", doneTasks, ColumnDone, columnWidth)
@@ -664,7 +657,6 @@ func (s *TaskScreen) renderKanban() string {
 		doneColumn,
 	)
 
-	// Add shortcuts at the bottom
 	shortcuts := s.renderShortcuts()
 
 	return lipgloss.JoinVertical(
@@ -677,7 +669,6 @@ func (s *TaskScreen) renderKanban() string {
 
 // overlayForm overlays the form on top of the kanban view
 func (s *TaskScreen) overlayForm(baseView string) string {
-	// Render the form
 	formView := s.taskForm.View()
 
 	// Calculate position to center the form
@@ -725,7 +716,6 @@ func (s *TaskScreen) renderColumn(title string, tasks []models.Task, column Colu
 
 	header := headerStyle.Render(headerText)
 
-	// Render tasks
 	var taskLines []string
 	for i, task := range tasks {
 		isSelected := task.ID == s.selectedTaskID
@@ -733,7 +723,6 @@ func (s *TaskScreen) renderColumn(title string, tasks []models.Task, column Colu
 		taskLine := s.renderKanbanTask(task, isSelected, isCursor)
 		taskLines = append(taskLines, taskLine)
 
-		// Add divider after each task (except the last one)
 		if i < len(tasks)-1 {
 			divider := lipgloss.NewStyle().
 				Foreground(styles.Border).
@@ -955,7 +944,6 @@ func (s *TaskScreen) moveTaskToColumn(taskID string, targetColumn Column) tea.Cm
 			return taskMovedMsg{err: err}
 		}
 
-		// Update status based on target column
 		switch targetColumn {
 		case ColumnTodo:
 			task.Status = models.TaskStatusPending
@@ -968,7 +956,6 @@ func (s *TaskScreen) moveTaskToColumn(taskID string, targetColumn Column) tea.Cm
 			// CompletedAt will be set by the repository
 		}
 
-		// Save to database
 		err = s.db.Tasks().Update(task)
 		return taskMovedMsg{err: err}
 	}
@@ -1096,10 +1083,8 @@ func (s *TaskScreen) exportTasks() tea.Cmd {
 			return tasksExportedMsg{err: err}
 		}
 
-		// Create a timestamped filename
 		filename := fmt.Sprintf("unicli_export_%s.json", time.Now().Format("20060102_150405"))
 
-		// Write the file
 		if err := os.WriteFile(filename, data, 0644); err != nil {
 			return tasksExportedMsg{err: err}
 		}

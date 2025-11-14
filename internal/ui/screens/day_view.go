@@ -59,7 +59,6 @@ func (d *DayView) Init() tea.Cmd {
 // fetchDayEvents fetches events for the current day
 func (d *DayView) fetchDayEvents() tea.Cmd {
 	return func() tea.Msg {
-		// Fetch events for this specific day (including course classes)
 		dayEvents, err := d.db.Events().GetEventsWithCoursesForDay(d.currentDate, d.db.Courses())
 		if err != nil {
 			return errMsg{err}
@@ -77,7 +76,6 @@ func (d *DayView) fetchDayTasks() tea.Cmd {
 			return errMsg{err}
 		}
 
-		// Filter tasks due on this day
 		var dayTasks []models.Task
 		for _, task := range allTasks {
 			if task.DueDate != nil &&
@@ -106,11 +104,9 @@ func (d *DayView) fetchCategories() tea.Cmd {
 type dayEventsFetchedMsg []models.Event
 type dayTasksFetchedMsg []models.Task
 
-// Update handles messages
 func (d *DayView) Update(msg tea.Msg) (*DayView, tea.Cmd) {
 	var cmd tea.Cmd
 	
-	// Handle delete confirmation dialog
 	if d.showDeleteConfirm {
 		switch msg := msg.(type) {
 		case tea.KeyMsg:
@@ -127,7 +123,6 @@ func (d *DayView) Update(msg tea.Msg) (*DayView, tea.Cmd) {
 		return d, nil
 	}
 	
-	// Handle event form
 	if d.showEventForm {
 		d.eventForm, cmd = d.eventForm.Update(msg)
 		if d.eventForm.IsSubmitted() {
@@ -188,7 +183,6 @@ func (d *DayView) Update(msg tea.Msg) (*DayView, tea.Cmd) {
 			return d, nil
 			
 		case "d":
-			// Delete event at selected slot
 			eventID := d.getEventAtSlot(d.selectedHour, d.selectedMinute)
 			if eventID != "" {
 				d.selectedEventID = eventID
@@ -307,7 +301,6 @@ func (d *DayView) deleteEvent(eventID string) tea.Cmd {
 	}
 }
 
-// View renders the day view
 func (d *DayView) View() string {
 	if d.width == 0 || d.height == 0 {
 		return "Initializing day view..."
@@ -328,11 +321,9 @@ func (d *DayView) View() string {
 		leftPanelWidth = maxTotalWidth - rightPanelWidth - 3
 	}
 
-	// Render panels
 	timelinePanel := d.renderTimeline(leftPanelWidth)
 	summaryPanel := d.renderSummaryAndTasks(rightPanelWidth)
 
-	// Add space between panels
 	spacer := strings.Repeat(" ", 3)
 
 	// Join panels horizontally with spacer
@@ -395,7 +386,6 @@ func (d *DayView) renderTitle() string {
 func (d *DayView) renderTimeline(width int) string {
 	var rows []string
 
-	// Render hours with events
 	now := time.Now()
 	isToday := now.Year() == d.currentDate.Year() && 
 	           now.Month() == d.currentDate.Month() && 
@@ -423,13 +413,11 @@ func (d *DayView) renderTimeline(width int) string {
 				Foreground(styles.Border).
 				Render("│")
 			
-			// Check if there's an event at this time slot
 			eventContent := d.renderEventAtSlot(hour, minute, width-7)
 			
 			row := timeStyle.Render(timeStr) + separator + eventContent
 			rows = append(rows, row)
 			
-			// Add NOW line if this is today and we're between time slots
 			if isToday && hour == currentHour && minute == 0 && currentMinute >= 0 && currentMinute < 30 {
 				nowLineStyle := lipgloss.NewStyle().
 					Foreground(lipgloss.Color("#E82424")).
@@ -466,9 +454,7 @@ func (d *DayView) renderEventAtSlot(hour, minute, width int) string {
 			eventEndMinute = eventStartMinute + 60 // Default 1 hour
 		}
 		
-		// Check if this slot is within the event time
 		if slotMinute >= eventStartMinute && slotMinute < eventEndMinute {
-			// Get color - either from category or from course
 			bgColor := styles.Info
 			if event.Type == "class" && strings.HasPrefix(event.CategoryID, "course_") {
 				// This is a course class, get color from course
@@ -481,7 +467,6 @@ func (d *DayView) renderEventAtSlot(hour, minute, width int) string {
 				bgColor = lipgloss.Color(event.Category.Color)
 			}
 			
-			// Only show title on the first slot
 			var content string
 			if slotMinute == eventStartMinute {
 				title := event.Title
@@ -495,7 +480,6 @@ func (d *DayView) renderEventAtSlot(hour, minute, width int) string {
 				content = " "
 			}
 			
-			// Render with background color
 			return lipgloss.NewStyle().
 				Background(bgColor).
 				Foreground(styles.Background).

@@ -17,7 +17,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Initialize database
 	db, err := database.New(cfg.DatabasePath)
 	if err != nil {
 		fmt.Printf("Error initializing database: %v\n", err)
@@ -25,13 +24,11 @@ func main() {
 	}
 	defer db.Close()
 
-	// Run migrations
 	if err := db.Migrate(); err != nil {
 		fmt.Printf("Error running migrations: %v\n", err)
 		os.Exit(1)
 	}
 
-	// Create and run the application
 	model := app.NewModel(db, cfg)
 	p := tea.NewProgram(
 		model,

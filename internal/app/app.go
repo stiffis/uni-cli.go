@@ -12,7 +12,6 @@ import (
 	"github.com/stiffis/UniCLI/internal/ui/styles"
 )
 
-// View represents different screens in the app
 type View int
 
 const (
@@ -26,7 +25,6 @@ const (
 	ViewSettings
 )
 
-// Model is the main application model
 type Model struct {
 	db             *database.DB
 	cfg            *config.Config
@@ -39,11 +37,9 @@ type Model struct {
 	ready          bool
 	err            error
 
-	// Command mode (like vim)
 	commandMode  bool
 	commandInput string
 
-	// Sidebar navigation
 	sidebarMode   bool
 	sidebarCursor int
 }
@@ -53,27 +49,23 @@ func NewModel(db *database.DB, cfg *config.Config) Model {
 	return Model{
 		db:             db,
 		cfg:            cfg,
-		currentView:    ViewWelcome, // Start with Welcome screen
+		currentView:    ViewWelcome,
 		taskScreen:     screens.NewTaskScreen(db),
 		calendarScreen: screens.NewCalendarScreen(db),
 		coursesScreen:  screens.NewCoursesScreen(db),
 	}
 }
 
-// Init initializes the application
 func (m Model) Init() tea.Cmd {
-	// Initialize the task screen
 	return m.taskScreen.Init()
 }
 
-// Update handles messages and updates the model
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
 		m.ready = true
-		// Pass window size to current screen
 		if m.currentView == ViewTasks {
 			var cmd tea.Cmd
 			m.taskScreen, cmd = m.taskScreen.Update(msg)
@@ -106,7 +98,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, nil
 			default:
-				// Add character to command input
 				if len(msg.String()) == 1 {
 					m.commandInput += msg.String()
 				}
@@ -133,7 +124,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.currentView = newView
 				m.sidebarMode = false
 
-				// Initialize view if needed
 				var cmd tea.Cmd
 				if newView == ViewTasks {
 					// Reload tasks when entering the view
@@ -149,7 +139,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.calendarScreen, _ = m.calendarScreen.Update(tea.WindowSizeMsg{Width: contentWidth, Height: m.height})
 					cmd = m.calendarScreen.Init()
 				} else if newView == ViewCourses {
-					// Initialize courses screen
 					sidebarWidth := 20
 					if m.width < 80 {
 						sidebarWidth = 15
@@ -171,27 +160,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c":
 			return m, tea.Quit
 		case ":":
-			// Check if calendar screen is active and if the event form is active
 			if m.currentView == ViewCalendar {
 				if calendar, ok := m.calendarScreen.(screens.CalendarScreen); ok {
-					// Check if month view has event form active
 					if calendar.IsEventFormActive() {
 						// Don't enter command mode if event form is active
 						break
 					}
-					// Check if week view is active and has event form active
 					if calendar.IsWeekViewActive() && calendar.IsWeekViewEventFormActive() {
 						// Don't enter command mode if week view event form is active
 						break
 					}
-					// Check if day view is active and has event form active
 					if calendar.IsDayViewActive() && calendar.IsDayViewEventFormActive() {
 						// Don't enter command mode if day view event form is active
 						break
 					}
 				}
 			}
-			// Check if courses screen is active and if the course form is active
 			if m.currentView == ViewCourses {
 				if courses, ok := m.coursesScreen.(screens.CoursesScreen); ok {
 					if courses.IsCourseFormActive() {
@@ -207,7 +191,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	// Update current screen - ALWAYS pass messages to active view
 	// This is important for async messages like tasksLoadedMsg
 	var cmd tea.Cmd
 	switch m.currentView {
@@ -225,7 +208,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) executeCommand() (tea.Model, tea.Cmd) {
 	cmd := strings.TrimSpace(m.commandInput)
 
-	// Reset command mode
 	m.commandMode = false
 	m.commandInput = ""
 
@@ -233,13 +215,11 @@ func (m Model) executeCommand() (tea.Model, tea.Cmd) {
 	case "q", "quit":
 		return m, tea.Quit
 	case "h", "help":
-		// TODO: Show help screen
 		m.currentView = ViewSettings // Placeholder for now
 		return m, nil
 	case "s", "sidebar":
 		// Enter sidebar navigation mode
 		m.sidebarMode = true
-		// Start at current view, but adjust for ViewWelcome offset
 		if m.currentView == ViewWelcome {
 			m.sidebarCursor = 0 // Start at Tasks
 		} else {
@@ -251,7 +231,6 @@ func (m Model) executeCommand() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// View renders the application
 func (m Model) View() string {
 	if !m.ready {
 		return "Initializing..."
@@ -280,7 +259,6 @@ func (m Model) View() string {
 		Width(m.width).
 		Render(titleContent)
 
-	// Check if terminal is too small
 	if m.width < 50 || m.height < 15 {
 		minSizeMsg := lipgloss.NewStyle().
 			Foreground(styles.Warning).
@@ -335,7 +313,6 @@ func (m Model) View() string {
 		content = "Settings View (Coming Soon)"
 	}
 
-	// Create content panel with conditional border color
 	contentPanelStyle := styles.Panel.
 		Width(contentWidth).
 		Height(contentHeight)
@@ -433,7 +410,6 @@ func (m Model) renderStatusBar() string {
 			Bold(true).
 			Render(":") + m.commandInput
 
-		// Add cursor
 		cursor := lipgloss.NewStyle().
 			Background(styles.Primary).
 			Foreground(lipgloss.Color("#FFFFFF")).
@@ -561,7 +537,6 @@ func (m Model) renderWelcome() string {
 
 	var combined string
 
-	// Only show ASCII art if terminal is wide enough (>= 100 columns)
 	if m.width >= 100 {
 		// ASCII art from file
 		asciiArt := []string{

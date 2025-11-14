@@ -11,14 +11,12 @@ import (
 )
 
 func main() {
-	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
 		fmt.Printf("Error loading config: %v\n", err)
 		os.Exit(1)
 	}
 
-	// Initialize database
 	db, err := database.New(cfg.DatabasePath)
 	if err != nil {
 		fmt.Printf("Error initializing database: %v\n", err)
@@ -26,13 +24,12 @@ func main() {
 	}
 	defer db.Close()
 
-	// Run migrations
 	if err := db.Migrate(); err != nil {
 		fmt.Printf("Error running migrations: %v\n", err)
 		os.Exit(1)
 	}
 
-	// Create sample tasks
+	tasks := []*models.Task{
 	tasks := []*models.Task{
 		createTask("Study for Calculus exam", "Review chapters 5-7 and practice problems", models.TaskPriorityHigh, models.TaskStatusPending, 1, []string{"study", "math"}, []string{"Review chapter 5", "Review chapter 6", "Practice problems"}),
 		createTask("Complete project proposal", "Write and submit the final project proposal for CS class", models.TaskPriorityUrgent, models.TaskStatusPending, 2, []string{"project", "cs"}, []string{"Write introduction", "Gather resources", "Write conclusion"}),
@@ -63,13 +60,8 @@ func main() {
 		}
 	}
 
-	// Create sample categories
 	categories := createCategories(db)
-
-	// Create sample events
 	createEvents(db, categories)
-
-	// Create sample courses
 	createCourses(db, categories)
 
 	fmt.Println("\nSample tasks, categories, events and courses created successfully!")
@@ -96,7 +88,6 @@ func createTask(title, description string, priority models.TaskPriority, status 
 }
 
 func createCategories(db *database.DB) []models.Category {
-	// Using Kanagawa syntax highlighting colors (like in Neovim)
 	categories := []models.Category{
 		*models.NewCategory("Personal", "#D27E99"),      // sakuraPink (constants, keywords)
 		*models.NewCategory("Work", "#7E9CD8"),          // springBlue (functions, methods)
@@ -112,8 +103,6 @@ func createCategories(db *database.DB) []models.Category {
 
 	fmt.Println("\nCreating sample categories...")
 	for _, category := range categories {
-		// In a real app, you'd use db.Categories().Create(category)
-		// For now, we'll just insert it directly
 		query := "INSERT OR IGNORE INTO categories (id, name, color) VALUES (?, ?, ?)"
 		if _, err := db.Conn().Exec(query, category.ID, category.Name, category.Color); err != nil {
 			fmt.Printf("Error creating category '%s': %v\n", category.Name, err)
@@ -129,7 +118,6 @@ func createEvents(db *database.DB, categories []models.Category) {
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	
 	events := []*models.Event{
-		// Today's events
 		{
 			Title:         "Morning Standup",
 			Description:   "Daily team sync - Discuss progress and blockers",
@@ -170,8 +158,6 @@ func createEvents(db *database.DB, categories []models.Category) {
 			Type:          "event",
 			CategoryID:    getCategoryIDByName("Health", categories),
 		},
-		
-		// Tomorrow's events
 		{
 			Title:         "Calculus Lecture",
 			Description:   "Chapter 7: Integration techniques - Room 301",
@@ -196,8 +182,6 @@ func createEvents(db *database.DB, categories []models.Category) {
 			Type:          "event",
 			CategoryID:    getCategoryIDByName("Work", categories),
 		},
-		
-		// Day after tomorrow
 		{
 			Title:         "Doctor's Appointment",
 			Description:   "Annual check-up with Dr. Smith - Don't forget insurance card",
@@ -214,8 +198,6 @@ func createEvents(db *database.DB, categories []models.Category) {
 			Type:          "event",
 			CategoryID:    getCategoryIDByName("Career", categories),
 		},
-		
-		// +3 days
 		{
 			Title:         "Chemistry Lab",
 			Description:   "Experiment: Acid-base titration - Lab coat required",
@@ -232,8 +214,6 @@ func createEvents(db *database.DB, categories []models.Category) {
 			Type:          "event",
 			CategoryID:    getCategoryIDByName("Social", categories),
 		},
-		
-		// +4 days
 		{
 			Title:         "Dentist Appointment",
 			Description:   "Regular cleaning and checkup - Downtown Dental Clinic",
@@ -250,8 +230,6 @@ func createEvents(db *database.DB, categories []models.Category) {
 			Type:          "event",
 			CategoryID:    getCategoryIDByName("Work", categories),
 		},
-		
-		// +5 days
 		{
 			Title:         "Birthday Party",
 			Description:   "John's 25th birthday party - Bring gift!",
@@ -260,8 +238,6 @@ func createEvents(db *database.DB, categories []models.Category) {
 			Type:          "event",
 			CategoryID:    getCategoryIDByName("Social", categories),
 		},
-		
-		// +6 days
 		{
 			Title:         "Project Deadline",
 			Description:   "Final submission for CS project - GitHub repository due",
@@ -270,8 +246,6 @@ func createEvents(db *database.DB, categories []models.Category) {
 			Type:          "event",
 			CategoryID:    getCategoryIDByName("Projects", categories),
 		},
-		
-		// +7 days (next week)
 		{
 			Title:         "Guitar Lesson",
 			Description:   "Weekly lesson with instructor - Practice sheet music from last week",
@@ -288,8 +262,6 @@ func createEvents(db *database.DB, categories []models.Category) {
 			Type:          "event",
 			CategoryID:    getCategoryIDByName("Finance", categories),
 		},
-		
-		// Recurring weekly event (simulated for next 2 weeks)
 		{
 			Title:         "Monday Morning Planning",
 			Description:   "Weekly planning session - Set goals for the week",
@@ -327,11 +299,9 @@ func getCategoryIDByName(name string, categories []models.Category) string {
 }
 
 func createCourses(db *database.DB, categories []models.Category) {
-	// Get current year for semester
 	now := time.Now()
 	year := now.Year()
 	
-	// Define Computer Science courses
 	courses := []struct {
 		name        string
 		code        string
@@ -361,9 +331,9 @@ func createCourses(db *database.DB, categories []models.Category) {
 				startTime string
 				endTime   string
 			}{
-				{1, "09:00", "10:30"}, // Monday
-				{3, "09:00", "10:30"}, // Wednesday
-				{5, "09:00", "10:30"}, // Friday
+				{1, "09:00", "10:30"},
+				{3, "09:00", "10:30"},
+				{5, "09:00", "10:30"},
 			},
 		},
 		{
@@ -380,8 +350,8 @@ func createCourses(db *database.DB, categories []models.Category) {
 				startTime string
 				endTime   string
 			}{
-				{2, "14:00", "15:30"}, // Tuesday
-				{4, "14:00", "15:30"}, // Thursday
+				{2, "14:00", "15:30"},
+				{4, "14:00", "15:30"},
 			},
 		},
 		{
@@ -398,8 +368,8 @@ func createCourses(db *database.DB, categories []models.Category) {
 				startTime string
 				endTime   string
 			}{
-				{1, "13:00", "14:30"}, // Monday
-				{3, "13:00", "14:30"}, // Wednesday
+				{1, "13:00", "14:30"},
+				{3, "13:00", "14:30"},
 			},
 		},
 		{
@@ -416,8 +386,8 @@ func createCourses(db *database.DB, categories []models.Category) {
 				startTime string
 				endTime   string
 			}{
-				{2, "10:00", "11:30"}, // Tuesday
-				{4, "10:00", "11:30"}, // Thursday
+				{2, "10:00", "11:30"},
+				{4, "10:00", "11:30"},
 			},
 		},
 		{
@@ -434,8 +404,8 @@ func createCourses(db *database.DB, categories []models.Category) {
 				startTime string
 				endTime   string
 			}{
-				{1, "15:00", "16:30"}, // Monday
-				{3, "15:00", "16:30"}, // Wednesday
+				{1, "15:00", "16:30"},
+				{3, "15:00", "16:30"},
 			},
 		},
 	}
@@ -451,7 +421,6 @@ func createCourses(db *database.DB, categories []models.Category) {
 		course.Description = c.description
 		course.Color = c.color
 
-		// Add schedules
 		for _, sched := range c.schedules {
 			schedule := models.NewCourseSchedule(course.ID, sched.day, sched.startTime, sched.endTime)
 			course.Schedule = append(course.Schedule, *schedule)

@@ -45,7 +45,6 @@ func (r *CategoryRepository) FindAll() ([]models.Category, error) {
 	return categories, nil
 }
 
-// Create adds a new category to the database
 func (r *CategoryRepository) Create(category *models.Category) error {
 	query := `INSERT INTO categories (id, name, color) VALUES (?, ?, ?)`
 	_, err := r.DB().Exec(query, category.ID, category.Name, category.Color)
@@ -55,7 +54,6 @@ func (r *CategoryRepository) Create(category *models.Category) error {
 	return nil
 }
 
-// Update modifies an existing category in the database
 func (r *CategoryRepository) Update(category *models.Category) error {
 	query := `UPDATE categories SET name = ?, color = ? WHERE id = ?`
 	_, err := r.DB().Exec(query, category.Name, category.Color, category.ID)
@@ -65,7 +63,6 @@ func (r *CategoryRepository) Update(category *models.Category) error {
 	return nil
 }
 
-// Delete removes a category from the database
 func (r *CategoryRepository) Delete(id string) error {
 	query := `DELETE FROM categories WHERE id = ?`
 	_, err := r.DB().Exec(query, id)

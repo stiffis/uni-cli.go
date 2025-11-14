@@ -20,7 +20,6 @@ func NewTaskRepository(db *sql.DB) *TaskRepository {
 	}
 }
 
-// Create inserts a new task into the database
 func (r *TaskRepository) Create(task *models.Task) error {
 	query := `
 		INSERT INTO tasks (
@@ -89,7 +88,6 @@ func (r *TaskRepository) FindByID(id string) (*models.Task, error) {
 		return nil, fmt.Errorf("failed to find task: %w", err)
 	}
 
-	// Handle nullable fields
 	if dueDate.Valid {
 		task.DueDate = &dueDate.Time
 	}
@@ -97,14 +95,12 @@ func (r *TaskRepository) FindByID(id string) (*models.Task, error) {
 		task.CompletedAt = &completedAt.Time
 	}
 
-	// Load tags
 	tags, err := r.loadTags(task.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load tags: %w", err)
 	}
 	task.Tags = tags
 
-	// Load subtasks
 	subtasks, err := r.loadSubtasks(task.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load subtasks: %w", err)
@@ -218,17 +214,14 @@ func (r *TaskRepository) FindOverdue() ([]models.Task, error) {
 	return r.scanTasks(rows)
 }
 
-// Update updates an existing task
 func (r *TaskRepository) Update(task *models.Task) error {
 	task.UpdatedAt = time.Now()
 
-	// Set CompletedAt if status is completed and it's not already set
 	if task.Status == models.TaskStatusCompleted && task.CompletedAt == nil {
 		now := time.Now()
 		task.CompletedAt = &now
 	}
 
-	// Clear CompletedAt if status is not completed
 	if task.Status != models.TaskStatusCompleted {
 		task.CompletedAt = nil
 	}
@@ -266,7 +259,6 @@ func (r *TaskRepository) Update(task *models.Task) error {
 		return fmt.Errorf("task not found: %s", task.ID)
 	}
 
-	// Update tags
 	if err := r.updateTags(task.ID, task.Tags); err != nil {
 		return fmt.Errorf("failed to update task tags: %w", err)
 	}
@@ -274,7 +266,6 @@ func (r *TaskRepository) Update(task *models.Task) error {
 	return nil
 }
 
-// Delete removes a task from the database
 func (r *TaskRepository) Delete(id string) error {
 	query := `DELETE FROM tasks WHERE id = ?`
 
@@ -341,7 +332,6 @@ func (r *TaskRepository) scanTasks(rows *sql.Rows) ([]models.Task, error) {
 			return nil, fmt.Errorf("failed to scan task: %w", err)
 		}
 
-		// Handle nullable fields
 		if dueDate.Valid {
 			task.DueDate = &dueDate.Time
 		}
@@ -349,14 +339,12 @@ func (r *TaskRepository) scanTasks(rows *sql.Rows) ([]models.Task, error) {
 			task.CompletedAt = &completedAt.Time
 		}
 
-		// Load tags
 		tags, err := r.loadTags(task.ID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load tags for task %s: %w", task.ID, err)
 		}
 		task.Tags = tags
 
-		// Load subtasks
 		subtasks, err := r.loadSubtasks(task.ID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load subtasks for task %s: %w", task.ID, err)
@@ -466,25 +454,21 @@ func (r *TaskRepository) DeleteSubtask(id int) error {
 
 // updateTags updates tags for a task
 func (r *TaskRepository) updateTags(taskID string, tags []string) error {
-	// Start transaction
 	tx, err := r.BeginTx()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	// Delete existing task_tags
 	if _, err := tx.Exec("DELETE FROM task_tags WHERE task_id = ?", taskID); err != nil {
 		return err
 	}
 
 	// Insert new tags
 	for _, tag := range tags {
-		// Get or create tag
 		var tagID int64
 		err := tx.QueryRow("SELECT id FROM tags WHERE name = ?", tag).Scan(&tagID)
 		if err == sql.ErrNoRows {
-			// Create new tag
 			result, err := tx.Exec("INSERT INTO tags (name) VALUES (?)", tag)
 			if err != nil {
 				return err

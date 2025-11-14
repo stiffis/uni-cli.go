@@ -10,5 +10,5 @@ type CalendarItem interface {
 	GetStartTime() time.Time
 	GetEndTime() *time.Time
 	IsAllDay() bool
-	GetType() string // e.g., "task", "event", "class"
+	GetType() string
 }

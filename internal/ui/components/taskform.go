@@ -103,7 +103,6 @@ func (f TaskForm) Init() tea.Cmd {
 	return nil
 }
 
-// Update handles messages
 func (f TaskForm) Update(msg tea.Msg) (TaskForm, tea.Cmd) {
 	var cmd tea.Cmd
 
@@ -158,7 +157,6 @@ func (f TaskForm) Update(msg tea.Msg) (TaskForm, tea.Cmd) {
 		}
 	}
 
-	// Update focused field
 	switch f.focusedField {
 	case fieldTitle:
 		cmd = f.titleInput.Update(msg)
@@ -173,7 +171,6 @@ func (f TaskForm) Update(msg tea.Msg) (TaskForm, tea.Cmd) {
 	return f, cmd
 }
 
-// View renders the form
 func (f TaskForm) View() string {
 	var sections []string
 
@@ -221,7 +218,6 @@ func (f TaskForm) View() string {
 
 	content := lipgloss.JoinVertical(lipgloss.Left, sections...)
 
-	// Create modal box
 	modalStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(styles.Primary).
@@ -359,16 +355,13 @@ func (f TaskForm) GetTask() *models.Task {
 	}
 	task.UpdatedAt = time.Now()
 
-	// Parse due date if provided
 	dueDateStr := strings.TrimSpace(f.dueDateInput.Value())
 	if dueDateStr != "" {
-		// Parse with local timezone
 		if dueDate, err := time.ParseInLocation("2006-01-02", dueDateStr, time.Local); err == nil {
 			task.DueDate = &dueDate
 		}
 	}
 
-	// Parse tags if provided
 	tagsStr := strings.TrimSpace(f.tagsInput.Value())
 	if tagsStr != "" {
 		rawTags := strings.Split(tagsStr, ",")

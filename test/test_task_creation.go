@@ -14,7 +14,6 @@ func main() {
 	fmt.Println("🧪 Testing task creation...")
 	fmt.Println()
 
-	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
 		fmt.Printf("❌ Error loading config: %v\n", err)
@@ -22,7 +21,6 @@ func main() {
 	}
 	fmt.Printf("✓ Config loaded: %s\n", cfg.DatabasePath)
 
-	// Initialize database
 	db, err := database.New(cfg.DatabasePath)
 	if err != nil {
 		fmt.Printf("❌ Error initializing database: %v\n", err)
@@ -31,7 +29,6 @@ func main() {
 	defer db.Close()
 	fmt.Println("✓ Database connected")
 
-	// Run migrations
 	if err := db.Migrate(); err != nil {
 		fmt.Printf("❌ Error running migrations: %v\n", err)
 		os.Exit(1)
@@ -48,7 +45,6 @@ func main() {
 	fmt.Printf("📊 Existing tasks: %d\n", len(existingTasks))
 	fmt.Println()
 
-	// Create a test task (simulating form submission)
 	fmt.Println("🔨 Creating test task...")
 	testTask := models.NewTask("Test Task from Script")
 	testTask.Description = "This is a test task to verify creation works"

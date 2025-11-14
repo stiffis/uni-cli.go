@@ -101,7 +101,6 @@ func (f EventForm) Init() tea.Cmd {
 	return nil
 }
 
-// Update handles messages
 func (f EventForm) Update(msg tea.Msg) (EventForm, tea.Cmd) {
 	var cmd tea.Cmd
 
@@ -154,7 +153,6 @@ func (f EventForm) Update(msg tea.Msg) (EventForm, tea.Cmd) {
 		}
 	}
 
-	// Update focused field
 	switch f.focusedField {
 	case eventFieldTitle:
 		cmd = f.titleInput.Update(msg)
@@ -173,7 +171,6 @@ func (f EventForm) Update(msg tea.Msg) (EventForm, tea.Cmd) {
 	return f, cmd
 }
 
-// View renders the form
 func (f EventForm) View() string {
 	var sections []string
 
@@ -195,7 +192,6 @@ func (f EventForm) View() string {
 	sections = append(sections, f.descriptionInput.View())
 	sections = append(sections, "")
 
-	// Start date/time input
 	sections = append(sections, f.startDateTimeInput.View())
 	sections = append(sections, "")
 
@@ -229,7 +225,6 @@ func (f EventForm) View() string {
 
 	content := lipgloss.JoinVertical(lipgloss.Left, sections...)
 
-	// Create modal box
 	modalStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(styles.Primary).
@@ -339,7 +334,6 @@ func (f EventForm) GetEvent() *models.Event {
 	event.Title = f.titleInput.Value()
 	event.Description = f.descriptionInput.Value()
 
-	// Parse start date/time
 	startDateTimeStr := strings.TrimSpace(f.startDateTimeInput.Value())
 	if startDateTime, err := time.ParseInLocation("2006-01-02 15:04", startDateTimeStr, time.Local); err == nil {
 		event.StartDatetime = startDateTime
@@ -352,7 +346,6 @@ func (f EventForm) GetEvent() *models.Event {
 		}
 	}
 
-	// Parse end date/time if provided
 	endDateTimeStr := strings.TrimSpace(f.endDateTimeInput.Value())
 	if endDateTimeStr != "" {
 		if endDateTime, err := time.ParseInLocation("2006-01-02 15:04", endDateTimeStr, time.Local); err == nil {

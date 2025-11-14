@@ -39,11 +39,9 @@ func (m CoursesScreen) Init() tea.Cmd {
 	return m.fetchCoursesCmd()
 }
 
-// Update handles messages for the courses screen
 func (m CoursesScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
-	// Handle form if active
 	if m.showForm {
 		switch msg := msg.(type) {
 		case tea.KeyMsg:
@@ -63,7 +61,6 @@ func (m CoursesScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 
-	// Handle delete confirmation
 	if m.showDeleteConfirm {
 		switch msg := msg.(type) {
 		case tea.KeyMsg:
@@ -112,13 +109,10 @@ func (m CoursesScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				cmd = m.courseForm.Init()
 			}
 		case "d":
-			// Delete course
 			if len(m.courses) > 0 {
 				m.showDeleteConfirm = true
 			}
 		case "enter":
-			// View course details (TODO: implement detail view)
-			// For now, just edit
 			if m.selectedIndex >= 0 && m.selectedIndex < len(m.courses) {
 				m.showForm = true
 				m.courseForm = components.NewCourseForm(m.db, &m.courses[m.selectedIndex])
@@ -140,7 +134,6 @@ func (m CoursesScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-// View renders the courses screen
 func (m CoursesScreen) View() string {
 	if m.width == 0 || m.height == 0 {
 		return "Loading..."
@@ -156,7 +149,6 @@ func (m CoursesScreen) View() string {
 		return m.renderDeleteConfirmation()
 	}
 
-	// Render main view
 	title := m.renderTitle()
 	list := m.renderCourseList()
 	shortcuts := m.renderShortcuts()
@@ -266,7 +258,6 @@ func (m CoursesScreen) renderCourseItem(course models.Course, isSelected bool) s
 		nameStyle = nameStyle.Foreground(styles.Primary)
 	}
 
-	// Build the item
 	nameLineLine := cursor + colorIndicator + " " + nameStyle.Render(codeName)
 	detailsLine := "   " + detailStyle.Render(detailsStr)
 	scheduleLine := "   " + detailStyle.Render(scheduleSummary)
@@ -327,7 +318,6 @@ func (m CoursesScreen) renderDeleteConfirmation() string {
 			),
 		))
 
-	// Build the complete view with base content
 	baseView := m.renderCourseList()
 	
 	// Overlay the dialog on top

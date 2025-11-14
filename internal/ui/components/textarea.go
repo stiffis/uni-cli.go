@@ -48,14 +48,12 @@ func (t *TextArea) Value() string {
 	return t.textarea.Value()
 }
 
-// Update updates the textarea
 func (t *TextArea) Update(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
 	t.textarea, cmd = t.textarea.Update(msg)
 	return cmd
 }
 
-// View renders the textarea
 func (t TextArea) View() string {
 	labelStyle := lipgloss.NewStyle().
 		Foreground(styles.Primary).

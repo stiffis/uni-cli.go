@@ -57,7 +57,6 @@ func (r *SubtaskRepository) FindByTaskID(taskID string) ([]models.Subtask, error
 	return subtasks, nil
 }
 
-// Create inserts a new subtask into the database.
 func (r *SubtaskRepository) Create(subtask *models.Subtask) error {
 	query := `
 		INSERT INTO subtasks (task_id, title, is_completed, created_at)

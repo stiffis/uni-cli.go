@@ -48,14 +48,12 @@ func (i *Input) Value() string {
 	return i.textInput.Value()
 }
 
-// Update updates the input
 func (i *Input) Update(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
 	i.textInput, cmd = i.textInput.Update(msg)
 	return cmd
 }
 
-// View renders the input
 func (i Input) View() string {
 	labelStyle := lipgloss.NewStyle().
 		Foreground(styles.Primary).

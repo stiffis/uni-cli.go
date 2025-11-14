@@ -5,14 +5,12 @@ import (
 	"path/filepath"
 )
 
-// Config holds application configuration
 type Config struct {
 	DatabasePath string
 	DataDir      string
 	Theme        Theme
 }
 
-// Theme defines the color scheme
 type Theme struct {
 	Primary   string
 	Secondary string
@@ -23,7 +21,6 @@ type Theme struct {
 	Muted     string
 }
 
-// DefaultTheme returns the default color theme
 func DefaultTheme() Theme {
 	return Theme{
 		Primary:   "#7C3AED",
@@ -36,7 +33,6 @@ func DefaultTheme() Theme {
 	}
 }
 
-// Load loads or creates the default configuration
 func Load() (*Config, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -45,7 +41,6 @@ func Load() (*Config, error) {
 
 	dataDir := filepath.Join(homeDir, ".unicli")
 
-	// Create data directory if it doesn't exist
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
 		return nil, err
 	}

@@ -105,7 +105,6 @@ func NewCourseForm(db *database.DB, course *models.Course) *CourseForm {
 		inputs[courseInputColor].SetValue(course.Color)
 		inputs[courseInputDescription].SetValue(course.Description)
 
-		// Format schedule for display
 		if len(course.Schedule) > 0 {
 			schedStr := formatScheduleForDisplay(course.Schedule)
 			inputs[courseInputSchedule].SetValue(schedStr)
@@ -126,7 +125,6 @@ func (f *CourseForm) Init() tea.Cmd {
 	return textinput.Blink
 }
 
-// Update handles messages for the form
 func (f *CourseForm) Update(msg tea.Msg) (*CourseForm, tea.Cmd) {
 	var cmds []tea.Cmd
 
@@ -157,7 +155,6 @@ func (f *CourseForm) Update(msg tea.Msg) (*CourseForm, tea.Cmd) {
 		}
 	}
 
-	// Update focused input
 	var cmd tea.Cmd
 	f.inputs[f.focusedInput], cmd = f.inputs[f.focusedInput].Update(msg)
 	cmds = append(cmds, cmd)
@@ -165,7 +162,6 @@ func (f *CourseForm) Update(msg tea.Msg) (*CourseForm, tea.Cmd) {
 	return f, tea.Batch(cmds...)
 }
 
-// View renders the form
 func (f *CourseForm) View() string {
 	title := "New Course"
 	if f.isEdit {
@@ -287,7 +283,6 @@ func (f *CourseForm) submitForm() tea.Cmd {
 			return nil
 		}
 
-		// Parse credits
 		credits := 0
 		if f.inputs[courseInputCredits].Value() != "" {
 			var err error
@@ -298,14 +293,12 @@ func (f *CourseForm) submitForm() tea.Cmd {
 			}
 		}
 
-		// Parse schedule
 		schedules, err := parseScheduleInput(f.inputs[courseInputSchedule].Value())
 		if err != nil {
 			f.err = "Invalid schedule format. Use: Mon/Wed/Fri 09:00-10:30"
 			return nil
 		}
 
-		// Create or update course
 		var course *models.Course
 		if f.isEdit {
 			course = f.course
@@ -323,7 +316,6 @@ func (f *CourseForm) submitForm() tea.Cmd {
 		course.Description = f.inputs[courseInputDescription].Value()
 		course.Schedule = schedules
 
-		// Save to database
 		var saveErr error
 		if f.isEdit {
 			saveErr = f.db.Courses().Update(course)

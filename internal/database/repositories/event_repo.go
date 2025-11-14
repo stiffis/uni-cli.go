@@ -21,7 +21,6 @@ func NewEventRepository(db *sql.DB) *EventRepository {
 	}
 }
 
-// Create inserts a new event into the database
 func (r *EventRepository) Create(event *models.Event) error {
 	query := `
 		INSERT INTO events (
@@ -116,7 +115,6 @@ func (r *EventRepository) GetEventsByMonth(year int, month time.Month) ([]models
 			occurrences := generateOccurrences(event, year, month)
 			eventsForMonth = append(eventsForMonth, occurrences...)
 		} else {
-			// Add non-recurring events that fall within the month
 			if event.StartDatetime.Year() == year && event.StartDatetime.Month() == month {
 				eventsForMonth = append(eventsForMonth, event)
 			}
@@ -235,7 +233,6 @@ func generateOccurrences(event models.Event, year int, month time.Month) []model
 	return occurrences
 }
 
-// Update updates an existing event
 func (r *EventRepository) Update(event *models.Event) error {
 	query := `
 		UPDATE events
@@ -273,7 +270,6 @@ func (r *EventRepository) Update(event *models.Event) error {
 	return nil
 }
 
-// Delete removes an event from the database
 func (r *EventRepository) Delete(id string) error {
 	query := `DELETE FROM events WHERE id = ?`
 
@@ -296,13 +292,11 @@ func (r *EventRepository) Delete(id string) error {
 
 // GetEventsWithCoursesForMonth gets all events AND course classes for a specific month
 func (r *EventRepository) GetEventsWithCoursesForMonth(year int, month time.Month, courseRepo *CourseRepository) ([]models.Event, error) {
-	// Get regular events
 	events, err := r.GetEventsByMonth(year, month)
 	if err != nil {
 		return nil, err
 	}
 
-	// Get all courses
 	courses, err := courseRepo.GetAll()
 	if err != nil {
 		return nil, err
@@ -312,10 +306,8 @@ func (r *EventRepository) GetEventsWithCoursesForMonth(year int, month time.Mont
 	for _, course := range courses {
 		classEvents := course.GenerateEventsForMonth(year, month)
 		for _, classEvent := range classEvents {
-			// Set the course color if available
 			if course.Color != "" {
 				// We'll need to create a category for this or use the color directly
-				// For now, let's set a special marker
 				classEvent.CategoryID = "course_" + course.ID
 			}
 			events = append(events, *classEvent)
@@ -327,10 +319,8 @@ func (r *EventRepository) GetEventsWithCoursesForMonth(year int, month time.Mont
 
 // GetEventsWithCoursesForWeek gets all events AND course classes for a specific week
 func (r *EventRepository) GetEventsWithCoursesForWeek(weekStart time.Time, courseRepo *CourseRepository) ([]models.Event, error) {
-	// Get week end
 	weekEnd := weekStart.AddDate(0, 0, 7)
 
-	// Get regular events for the week
 	allEvents, err := r.FindAll()
 	if err != nil {
 		return nil, err
@@ -343,7 +333,6 @@ func (r *EventRepository) GetEventsWithCoursesForWeek(weekStart time.Time, cours
 			occurrences := generateOccurrencesForRange(event, weekStart, weekEnd)
 			events = append(events, occurrences...)
 		} else {
-			// Add non-recurring events that fall within the week
 			if (event.StartDatetime.Equal(weekStart) || event.StartDatetime.After(weekStart)) &&
 				event.StartDatetime.Before(weekEnd) {
 				events = append(events, event)
@@ -351,7 +340,6 @@ func (r *EventRepository) GetEventsWithCoursesForWeek(weekStart time.Time, cours
 		}
 	}
 
-	// Get all courses
 	courses, err := courseRepo.GetAll()
 	if err != nil {
 		return nil, err
@@ -377,7 +365,6 @@ func (r *EventRepository) GetEventsWithCoursesForDay(date time.Time, courseRepo 
 	dayStart := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.Local)
 	dayEnd := dayStart.AddDate(0, 0, 1)
 
-	// Get regular events for the day
 	allEvents, err := r.FindAll()
 	if err != nil {
 		return nil, err
@@ -390,7 +377,6 @@ func (r *EventRepository) GetEventsWithCoursesForDay(date time.Time, courseRepo 
 			occurrences := generateOccurrencesForRange(event, dayStart, dayEnd)
 			events = append(events, occurrences...)
 		} else {
-			// Add non-recurring events that fall within the day
 			if (event.StartDatetime.Equal(dayStart) || event.StartDatetime.After(dayStart)) &&
 				event.StartDatetime.Before(dayEnd) {
 				events = append(events, event)
@@ -398,7 +384,6 @@ func (r *EventRepository) GetEventsWithCoursesForDay(date time.Time, courseRepo 
 		}
 	}
 
-	// Get all courses
 	courses, err := courseRepo.GetAll()
 	if err != nil {
 		return nil, err

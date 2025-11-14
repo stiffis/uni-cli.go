@@ -39,7 +39,6 @@ type WeekView struct {
 
 // NewWeekView creates a new week view
 func NewWeekView(db *database.DB, currentDate time.Time) *WeekView {
-	// Get Monday of the current week
 	monday := getMonday(currentDate)
 	
 	return &WeekView{
@@ -74,10 +73,8 @@ func (w *WeekView) Init() tea.Cmd {
 // fetchWeekEvents fetches events for the current week
 func (w *WeekView) fetchWeekEvents() tea.Cmd {
 	return func() tea.Msg {
-		// Get start of week
 		startOfWeek := w.currentWeek
 
-		// Fetch events for the week (including course classes)
 		weekEvents, err := w.db.Events().GetEventsWithCoursesForWeek(startOfWeek, w.db.Courses())
 		if err != nil {
 			return errMsg{err}
@@ -99,7 +96,6 @@ func (w *WeekView) fetchCategoriesCmd() tea.Cmd {
 
 type weekEventsFetchedMsg []models.Event
 
-// Update handles messages
 func (w *WeekView) Update(msg tea.Msg) (*WeekView, tea.Cmd) {
 	var cmd tea.Cmd
 
@@ -192,7 +188,6 @@ func (w *WeekView) Update(msg tea.Msg) (*WeekView, tea.Cmd) {
 			selectedDate := w.currentWeek.AddDate(0, 0, w.selectedDay)
 			startTime := time.Date(selectedDate.Year(), selectedDate.Month(), selectedDate.Day(),
 				w.selectedHour, w.selectedMinute, 0, 0, selectedDate.Location())
-			// Create event WITHOUT ID (will be generated when saved)
 			event := &models.Event{
 				ID:            "", // Empty ID means new event
 				StartDatetime: startTime,
@@ -222,7 +217,6 @@ func (w *WeekView) Update(msg tea.Msg) (*WeekView, tea.Cmd) {
 			}
 			return w, nil
 		case "d":
-			// Delete event at selected slot
 			eventID := w.getEventAtSlot(w.selectedDay, w.selectedHour, w.selectedMinute)
 			if eventID != "" {
 				w.selectedEventID = eventID
@@ -257,7 +251,6 @@ func (w *WeekView) Update(msg tea.Msg) (*WeekView, tea.Cmd) {
 		// Don't quit on error, just log it
 		w.err = msg.err
 		w.errorMessage = fmt.Sprintf("Error: %v", msg.err)
-		// Clear error after 3 seconds
 		return w, nil
 	}
 
@@ -320,7 +313,6 @@ func (w *WeekView) deleteEvent(eventID string) tea.Cmd {
 	}
 }
 
-// View renders the week view
 func (w *WeekView) View() string {
 	if w.width == 0 || w.height == 0 {
 		return "Initializing week view..."
@@ -423,7 +415,6 @@ func (w *WeekView) renderWeekGrid() string {
 		}
 	}
 
-	// Render rows with half-hour intervals
 	now := time.Now()
 	currentHour := now.Hour()
 	currentMinute := now.Minute()
@@ -432,7 +423,6 @@ func (w *WeekView) renderWeekGrid() string {
 		// Full hour (e.g., 09:00)
 		rows = append(rows, w.renderTimeRow(hour, 0, dayColWidth))
 		
-		// Add NOW line if current time is between :00 and :29
 		if hour == currentHour && currentMinute >= 0 && currentMinute < 30 {
 			nowLine := w.renderNowLine(dayColWidth, currentHour, currentMinute)
 			rows = append(rows, nowLine)
@@ -441,7 +431,6 @@ func (w *WeekView) renderWeekGrid() string {
 		// Half hour (e.g., 09:30)
 		rows = append(rows, w.renderTimeRow(hour, 30, dayColWidth))
 		
-		// Add NOW line if current time is between :30 and :59
 		if hour == currentHour && currentMinute >= 30 {
 			nowLine := w.renderNowLine(dayColWidth, currentHour, currentMinute)
 			rows = append(rows, nowLine)
@@ -570,7 +559,6 @@ func (w *WeekView) renderNowLine(dayColWidth, currentHour, currentMinute int) st
 
 // renderDayCell renders a single cell (day x hour x minute)
 func (w *WeekView) renderDayCell(day, hour, minute, width int) string {
-	// Check if there's an event in this slot
 	selectedDate := w.currentWeek.AddDate(0, 0, day)
 	
 	var cellContent string
@@ -581,7 +569,6 @@ func (w *WeekView) renderDayCell(day, hour, minute, width int) string {
 		eventStart := event.StartDatetime
 		eventEnd := event.EndDatetime
 		
-		// Check if event occupies this time slot
 		eventStartMinute := eventStart.Hour()*60 + eventStart.Minute()
 		slotMinute := hour*60 + minute
 		
@@ -599,7 +586,6 @@ func (w *WeekView) renderDayCell(day, hour, minute, width int) string {
 			eventStart.Month() == selectedDate.Month() &&
 			slotMinute >= eventStartMinute && slotMinute < eventEndMinute {
 			
-			// Get color - either from category or from course
 			bgColor := styles.Info
 			if event.Type == "class" && strings.HasPrefix(event.CategoryID, "course_") {
 				// This is a course class, get color from course
@@ -612,7 +598,6 @@ func (w *WeekView) renderDayCell(day, hour, minute, width int) string {
 				bgColor = lipgloss.Color(event.Category.Color)
 			}
 
-			// Only show title on the first slot of the event
 			if slotMinute == eventStartMinute || (minute == 0 && slotMinute > eventStartMinute && slotMinute < eventStartMinute+30) {
 				// Truncate title if too long
 				title := event.Title

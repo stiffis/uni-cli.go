@@ -31,7 +31,6 @@ func New(path string) (*DB, error) {
 
 	db := &DB{conn: conn}
 
-	// Initialize repositories
 	db.taskRepo = repositories.NewTaskRepository(conn)
 	db.eventRepo = repositories.NewEventRepository(conn)
 	db.categoryRepo = repositories.NewCategoryRepository(conn)
@@ -40,7 +39,6 @@ func New(path string) (*DB, error) {
 	return db, nil
 }
 
-// Close closes the database connection
 func (db *DB) Close() error {
 	return db.conn.Close()
 }
