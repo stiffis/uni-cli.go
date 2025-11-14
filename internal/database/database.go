@@ -14,6 +14,7 @@ type DB struct {
 	taskRepo     *repositories.TaskRepository
 	eventRepo    *repositories.EventRepository
 	categoryRepo *repositories.CategoryRepository
+	courseRepo   *repositories.CourseRepository
 }
 
 // New creates a new database connection
@@ -34,6 +35,7 @@ func New(path string) (*DB, error) {
 	db.taskRepo = repositories.NewTaskRepository(conn)
 	db.eventRepo = repositories.NewEventRepository(conn)
 	db.categoryRepo = repositories.NewCategoryRepository(conn)
+	db.courseRepo = repositories.NewCourseRepository(conn)
 
 	return db, nil
 }
@@ -61,6 +63,11 @@ func (db *DB) Events() *repositories.EventRepository {
 // Categories returns the category repository
 func (db *DB) Categories() *repositories.CategoryRepository {
 	return db.categoryRepo
+}
+
+// Courses returns the course repository
+func (db *DB) Courses() *repositories.CourseRepository {
+	return db.courseRepo
 }
 
 // Migrate runs database migrations
@@ -101,29 +108,55 @@ func (db *DB) Migrate() error {
 		FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
 	);
 
-	CREATE TABLE IF NOT EXISTS classes (
+	CREATE TABLE IF NOT EXISTS courses (
 		id TEXT PRIMARY KEY,
 		name TEXT NOT NULL,
+		code TEXT,
 		professor TEXT,
-		room TEXT,
-		color TEXT,
+		location TEXT,
 		semester TEXT,
-		credits INTEGER,
-		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		credits INTEGER DEFAULT 0,
+		color TEXT,
+		description TEXT,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 	);
 
-	CREATE TABLE IF NOT EXISTS schedules (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		class_id TEXT NOT NULL,
+	CREATE TABLE IF NOT EXISTS course_schedules (
+		id TEXT PRIMARY KEY,
+		course_id TEXT NOT NULL,
 		day_of_week INTEGER NOT NULL,
 		start_time TEXT NOT NULL,
 		end_time TEXT NOT NULL,
-		FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+	);
+
+	CREATE TABLE IF NOT EXISTS course_notes (
+		id TEXT PRIMARY KEY,
+		course_id TEXT NOT NULL,
+		title TEXT NOT NULL,
+		content TEXT,
+		date DATETIME,
+		tags TEXT,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+	);
+
+	CREATE TABLE IF NOT EXISTS course_attendance (
+		id TEXT PRIMARY KEY,
+		course_id TEXT NOT NULL,
+		date DATETIME NOT NULL,
+		status TEXT NOT NULL,
+		notes TEXT,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
 	);
 
 	CREATE TABLE IF NOT EXISTS grades (
 		id TEXT PRIMARY KEY,
-		class_id TEXT NOT NULL,
+		course_id TEXT NOT NULL,
 		name TEXT NOT NULL,
 		score REAL NOT NULL,
 		max_score REAL NOT NULL,
@@ -131,7 +164,7 @@ func (db *DB) Migrate() error {
 		date DATE,
 		type TEXT,
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-		FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE
+		FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
 	);
 
 	CREATE TABLE IF NOT EXISTS events (
@@ -166,6 +199,9 @@ func (db *DB) Migrate() error {
 	CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);
 	CREATE INDEX IF NOT EXISTS idx_subtasks_task_id ON subtasks(task_id);
 	CREATE INDEX IF NOT EXISTS idx_events_start ON events(start_datetime);
+	CREATE INDEX IF NOT EXISTS idx_course_schedules_course_id ON course_schedules(course_id);
+	CREATE INDEX IF NOT EXISTS idx_course_notes_course_id ON course_notes(course_id);
+	CREATE INDEX IF NOT EXISTS idx_course_attendance_course_id ON course_attendance(course_id);
 	`
 
 	if _, err := db.conn.Exec(schema); err != nil {
