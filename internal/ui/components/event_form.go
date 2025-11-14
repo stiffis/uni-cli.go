@@ -324,11 +324,16 @@ func (f *EventForm) focusField(field int) tea.Cmd {
 func (f EventForm) GetEvent() *models.Event {
 	var event *models.Event
 	if f.originalEvent != nil {
-		// Editing existing event
+		// Use the original event (either for editing or as a template for new event)
 		event = f.originalEvent
 	} else {
-		// Creating new event
-		event = models.NewEvent("", time.Now()) // Provide dummy title and start time
+		// Creating new event without template
+		event = models.NewEvent("", time.Now())
+	}
+	
+	// If this is a new event (empty ID), generate one now
+	if event.ID == "" {
+		event = models.NewEvent("", event.StartDatetime)
 	}
 
 	event.Title = f.titleInput.Value()
@@ -339,9 +344,12 @@ func (f EventForm) GetEvent() *models.Event {
 	if startDateTime, err := time.ParseInLocation("2006-01-02 15:04", startDateTimeStr, time.Local); err == nil {
 		event.StartDatetime = startDateTime
 	} else {
-		// If parsing fails, set a default valid time and prevent submission
-		event.StartDatetime = time.Now()
-		f.submitted = false // Prevent submission if start date is invalid
+		// If parsing fails, use original start time or current time
+		if f.originalEvent != nil {
+			event.StartDatetime = f.originalEvent.StartDatetime
+		} else {
+			event.StartDatetime = time.Now()
+		}
 	}
 
 	// Parse end date/time if provided

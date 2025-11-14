@@ -15,21 +15,23 @@ import (
 
 // CalendarScreen is the model for the calendar view
 type CalendarScreen struct {
-	db                 *database.DB
-	currentDate        time.Time
-	width              int
-	height             int
-	selectedDay        int
-	calendarItems      []models.CalendarItem
-	categories         []models.Category
-	showDayDetails     bool
-	showEventForm      bool
-	eventForm          components.EventForm
-	selectedEventID    string
-	showDeleteConfirm  bool
-	selectedItemIndex  int
+	db                  *database.DB
+	currentDate         time.Time
+	width               int
+	height              int
+	selectedDay         int
+	calendarItems       []models.CalendarItem
+	categories          []models.Category
+	showDayDetails      bool
+	showEventForm       bool
+	eventForm           components.EventForm
+	selectedEventID     string
+	showDeleteConfirm   bool
+	selectedItemIndex   int
 	showCategoryManager bool
-	categoryManager    *components.CategoryManager
+	categoryManager     *components.CategoryManager
+	showWeekView        bool
+	weekView            *WeekView
 }
 
 // NewCalendarScreen creates a new model for the calendar view
@@ -131,6 +133,17 @@ func (m CalendarScreen) IsEventFormActive() bool {
 	return m.showEventForm
 }
 
+func (m CalendarScreen) IsWeekViewActive() bool {
+	return m.showWeekView
+}
+
+func (m CalendarScreen) IsWeekViewEventFormActive() bool {
+	if m.showWeekView && m.weekView != nil {
+		return m.weekView.showEventForm
+	}
+	return false
+}
+
 // Update handles messages and updates the calendar screen model
 func (m CalendarScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
@@ -143,6 +156,27 @@ func (m CalendarScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.fetchCategoriesCmd()
 		}
 		return m, newCmd
+	}
+
+	if m.showWeekView {
+		// Check for escape key to return to month view
+		// BUT only if no form is active in week view
+		if keyMsg, ok := msg.(tea.KeyMsg); ok {
+			if keyMsg.String() == "esc" {
+				// Only exit to month view if no forms are active
+				if !m.weekView.showEventForm && !m.weekView.showCategoryManager && !m.weekView.showDeleteConfirm {
+					m.showWeekView = false
+					return m, m.fetchCalendarItemsCmd()
+				}
+			}
+		}
+		
+		// Pass all messages to week view
+		var newWeekView *WeekView
+		newWeekView, cmd = m.weekView.Update(msg)
+		m.weekView = newWeekView
+		
+		return m, cmd
 	}
 
 	switch msg := msg.(type) {
@@ -228,6 +262,13 @@ func (m CalendarScreen) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		oldMonth := m.currentDate.Month()
 		switch msg.String() {
+		case "s":
+			// Switch to week view
+			m.showWeekView = true
+			m.weekView = NewWeekView(m.db, m.currentDate)
+			m.weekView.width = m.width
+			m.weekView.height = m.height
+			return m, m.weekView.Init()
 		case "c":
 			m.showCategoryManager = true
 			m.categoryManager.Reset()
@@ -310,6 +351,10 @@ func (m CalendarScreen) View() string {
 
 	if m.showCategoryManager {
 		return m.categoryManager.View()
+	}
+
+	if m.showWeekView {
+		return m.weekView.View()
 	}
 
 	var mainView string
@@ -557,6 +602,7 @@ func (m CalendarScreen) renderShortcuts() string {
 			styles.Shortcut.Render("h/j/k/l") + styles.ShortcutText.Render(" navigate"),
 			styles.Shortcut.Render("H/L") + styles.ShortcutText.Render(" change month"),
 			styles.Shortcut.Render("enter") + styles.ShortcutText.Render(" view day details"),
+			styles.Shortcut.Render("s") + styles.ShortcutText.Render(" week view"),
 			styles.Shortcut.Render("c") + styles.ShortcutText.Render(" categories"),
 			styles.Shortcut.Render("n") + styles.ShortcutText.Render(" new event"),
 		}

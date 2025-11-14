@@ -103,7 +103,7 @@ func (r *EventRepository) FindByID(id string) (*models.Event, error) {
 // GetEventsByMonth retrieves all events for a given month and year
 func (r *EventRepository) GetEventsByMonth(year int, month time.Month) ([]models.Event, error) {
 	// 1. Fetch all events from the database (this could be optimized)
-	allEvents, err := r.findAllEvents()
+	allEvents, err := r.FindAll()
 	if err != nil {
 		return nil, err
 	}
@@ -126,8 +126,8 @@ func (r *EventRepository) GetEventsByMonth(year int, month time.Month) ([]models
 	return eventsForMonth, nil
 }
 
-// findAllEvents retrieves all events from the database
-func (r *EventRepository) findAllEvents() ([]models.Event, error) {
+// FindAll retrieves all events from the database
+func (r *EventRepository) FindAll() ([]models.Event, error) {
 	query := `
 		SELECT id, title, description, start_datetime, end_datetime, type, category_id,
 			   recurrence_rule, recurrence_end_date, created_at

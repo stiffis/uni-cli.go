@@ -163,8 +163,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Check if calendar screen is active and if the event form is active
 			if m.currentView == ViewCalendar {
 				if calendar, ok := m.calendarScreen.(screens.CalendarScreen); ok {
+					// Check if month view has event form active
 					if calendar.IsEventFormActive() {
 						// Don't enter command mode if event form is active
+						break
+					}
+					// Check if week view is active and has event form active
+					if calendar.IsWeekViewActive() && calendar.IsWeekViewEventFormActive() {
+						// Don't enter command mode if week view event form is active
 						break
 					}
 				}
