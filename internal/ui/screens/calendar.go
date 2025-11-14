@@ -377,22 +377,14 @@ func (m CalendarScreen) renderCalendar() string {
 
 	// Days of the week header
 	weekdays := []string{"Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"}
-	dayWidth := containerWidth / 7
-	if dayWidth < 4 { // Minimum width for each day cell
-		dayWidth = 4
+	
+	// Calculate cell width (accounting for borders)
+	// Each cell has 2 border characters (left and right), so we need to account for that
+	baseCellWidth := (containerWidth - 14) / 7 // 14 = 2 borders * 7 cells
+	if baseCellWidth < 4 {
+		baseCellWidth = 4
 	}
-	weekdayStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(styles.Accent).
-		Align(lipgloss.Center).
-		Width(dayWidth)
-
-	var weekdayHeaders []string
-	for _, day := range weekdays {
-		weekdayHeaders = append(weekdayHeaders, weekdayStyle.Render(day))
-	}
-	weekdayHeader := lipgloss.JoinHorizontal(lipgloss.Top, weekdayHeaders...)
-
+	
 	// Calendar grid
 	var rows []string
 	var row []string
@@ -401,13 +393,27 @@ func (m CalendarScreen) renderCalendar() string {
 	lastOfMonth := firstOfMonth.AddDate(0, 1, -1)
 	firstWeekday := (int(firstOfMonth.Weekday()) + 6) % 7
 
-	// Create a cell style
+	// Create a cell style with borders
 	cellStyle := lipgloss.NewStyle().
 		Border(lipgloss.NormalBorder(), true).
 		BorderForeground(styles.Muted).
-		Width(dayWidth).
+		Width(baseCellWidth).
 		Height(3). // 1 line for content + 2 for borders
 		Align(lipgloss.Center)
+	
+	// Create weekday header style to match cell width INCLUDING borders
+	// The header cells should have the same total width as calendar cells (content + borders)
+	weekdayStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(styles.Accent).
+		Align(lipgloss.Center).
+		Width(baseCellWidth + 2) // +2 to match the total width of cells with borders
+
+	var weekdayHeaders []string
+	for _, day := range weekdays {
+		weekdayHeaders = append(weekdayHeaders, weekdayStyle.Render(day))
+	}
+	weekdayHeader := lipgloss.JoinHorizontal(lipgloss.Top, weekdayHeaders...)
 
 	// Print leading empty cells
 	for i := 0; i < firstWeekday; i++ {
