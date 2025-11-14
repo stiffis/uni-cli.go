@@ -122,66 +122,179 @@ func createCategories(db *database.DB) []models.Category {
 }
 
 func createEvents(db *database.DB, categories []models.Category) {
+	now := time.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	
 	events := []*models.Event{
+		// Today's events
 		{
-			Title:         "Doctor's Appointment",
-			Description:   "Annual check-up",
-			StartDatetime: time.Now().AddDate(0, 0, 3),
-			CategoryID:    getCategoryIDByName("Health", categories),
-		},
-		{
-			Title:         "Team Meeting",
-			Description:   "Weekly sync-up",
-			StartDatetime: time.Now().AddDate(0, 0, 1),
+			Title:         "Morning Standup",
+			Description:   "Daily team sync - Discuss progress and blockers",
+			StartDatetime: today.Add(9 * time.Hour),
+			EndDatetime:   timePtr(today.Add(9*time.Hour + 30*time.Minute)),
+			Type:          "event",
 			CategoryID:    getCategoryIDByName("Work", categories),
 		},
 		{
-			Title:         "Lunch with Mom",
-			Description:   "At the new Italian place",
-			StartDatetime: time.Now().AddDate(0, 0, 5),
-			CategoryID:    getCategoryIDByName("Personal", categories),
-		},
-		{
-			Title:         "Finals Study Group",
-			Description:   "Library, 2nd floor",
-			StartDatetime: time.Now().AddDate(0, 0, 2),
-			CategoryID:    getCategoryIDByName("University", categories),
-		},
-		{
-			Title:         "Dentist Appointment",
-			Description:   "Regular cleaning",
-			StartDatetime: time.Now().AddDate(0, 0, 4),
-			CategoryID:    getCategoryIDByName("Health", categories),
-		},
-		{
-			Title:         "Project Deadline",
-			Description:   "Submit the final version",
-			StartDatetime: time.Now().AddDate(0, 0, 6),
+			Title:         "Deep Work Session",
+			Description:   "Focus time - Work on backend API authentication module",
+			StartDatetime: today.Add(10 * time.Hour),
+			EndDatetime:   timePtr(today.Add(13 * time.Hour)),
+			Type:          "event",
 			CategoryID:    getCategoryIDByName("Projects", categories),
 		},
 		{
-			Title:         "Birthday Party",
-			Description:   "John's birthday party",
-			StartDatetime: time.Now().AddDate(0, 0, 5),
-			CategoryID:    getCategoryIDByName("Social", categories),
+			Title:         "Lunch Break",
+			Description:   "Team lunch at downtown cafe",
+			StartDatetime: today.Add(13 * time.Hour),
+			EndDatetime:   timePtr(today.Add(14 * time.Hour)),
+			Type:          "event",
+			CategoryID:    getCategoryIDByName("Personal", categories),
+		},
+		{
+			Title:         "Code Review",
+			Description:   "Review pull requests from team members",
+			StartDatetime: today.Add(14*time.Hour + 30*time.Minute),
+			EndDatetime:   timePtr(today.Add(15*time.Hour + 30*time.Minute)),
+			Type:          "event",
+			CategoryID:    getCategoryIDByName("Work", categories),
+		},
+		{
+			Title:         "Gym Workout",
+			Description:   "Leg day - Squats, lunges, and cardio",
+			StartDatetime: today.Add(18 * time.Hour),
+			EndDatetime:   timePtr(today.Add(19*time.Hour + 30*time.Minute)),
+			Type:          "event",
+			CategoryID:    getCategoryIDByName("Health", categories),
+		},
+		
+		// Tomorrow's events
+		{
+			Title:         "Calculus Lecture",
+			Description:   "Chapter 7: Integration techniques - Room 301",
+			StartDatetime: today.AddDate(0, 0, 1).Add(8 * time.Hour),
+			EndDatetime:   timePtr(today.AddDate(0, 0, 1).Add(10 * time.Hour)),
+			Type:          "event",
+			CategoryID:    getCategoryIDByName("University", categories),
+		},
+		{
+			Title:         "Study Group",
+			Description:   "Physics study session - Library 2nd floor",
+			StartDatetime: today.AddDate(0, 0, 1).Add(14 * time.Hour),
+			EndDatetime:   timePtr(today.AddDate(0, 0, 1).Add(16 * time.Hour)),
+			Type:          "event",
+			CategoryID:    getCategoryIDByName("University", categories),
+		},
+		{
+			Title:         "Client Presentation",
+			Description:   "Q4 project demo - Prepare slides and demo environment",
+			StartDatetime: today.AddDate(0, 0, 1).Add(16*time.Hour + 30*time.Minute),
+			EndDatetime:   timePtr(today.AddDate(0, 0, 1).Add(17*time.Hour + 30*time.Minute)),
+			Type:          "event",
+			CategoryID:    getCategoryIDByName("Work", categories),
+		},
+		
+		// Day after tomorrow
+		{
+			Title:         "Doctor's Appointment",
+			Description:   "Annual check-up with Dr. Smith - Don't forget insurance card",
+			StartDatetime: today.AddDate(0, 0, 2).Add(10*time.Hour + 30*time.Minute),
+			EndDatetime:   timePtr(today.AddDate(0, 0, 2).Add(11*time.Hour + 30*time.Minute)),
+			Type:          "event",
+			CategoryID:    getCategoryIDByName("Health", categories),
 		},
 		{
 			Title:         "Job Interview",
-			Description:   "Interview for the software engineer position",
-			StartDatetime: time.Now().AddDate(0, 0, 3),
+			Description:   "Software Engineer position at TechCorp - Virtual interview via Zoom",
+			StartDatetime: today.AddDate(0, 0, 2).Add(15 * time.Hour),
+			EndDatetime:   timePtr(today.AddDate(0, 0, 2).Add(16*time.Hour + 30*time.Minute)),
+			Type:          "event",
 			CategoryID:    getCategoryIDByName("Career", categories),
 		},
+		
+		// +3 days
 		{
-			Title:         "Pay bills",
-			Description:   "Pay electricity and internet bills",
-			StartDatetime: time.Now().AddDate(0, 0, 1),
-			CategoryID:    getCategoryIDByName("Finance", categories),
+			Title:         "Chemistry Lab",
+			Description:   "Experiment: Acid-base titration - Lab coat required",
+			StartDatetime: today.AddDate(0, 0, 3).Add(13 * time.Hour),
+			EndDatetime:   timePtr(today.AddDate(0, 0, 3).Add(16 * time.Hour)),
+			Type:          "event",
+			CategoryID:    getCategoryIDByName("University", categories),
 		},
 		{
-			Title:         "Go to the gym",
-			Description:   "Workout session",
-			StartDatetime: time.Now().AddDate(0, 0, 2),
+			Title:         "Dinner with Friends",
+			Description:   "Celebrating Sarah's promotion at Italian restaurant",
+			StartDatetime: today.AddDate(0, 0, 3).Add(19*time.Hour + 30*time.Minute),
+			EndDatetime:   timePtr(today.AddDate(0, 0, 3).Add(22 * time.Hour)),
+			Type:          "event",
+			CategoryID:    getCategoryIDByName("Social", categories),
+		},
+		
+		// +4 days
+		{
+			Title:         "Dentist Appointment",
+			Description:   "Regular cleaning and checkup - Downtown Dental Clinic",
+			StartDatetime: today.AddDate(0, 0, 4).Add(9 * time.Hour),
+			EndDatetime:   timePtr(today.AddDate(0, 0, 4).Add(10 * time.Hour)),
+			Type:          "event",
 			CategoryID:    getCategoryIDByName("Health", categories),
+		},
+		{
+			Title:         "Team Building Event",
+			Description:   "Escape room activity with work team",
+			StartDatetime: today.AddDate(0, 0, 4).Add(14 * time.Hour),
+			EndDatetime:   timePtr(today.AddDate(0, 0, 4).Add(17 * time.Hour)),
+			Type:          "event",
+			CategoryID:    getCategoryIDByName("Work", categories),
+		},
+		
+		// +5 days
+		{
+			Title:         "Birthday Party",
+			Description:   "John's 25th birthday party - Bring gift!",
+			StartDatetime: today.AddDate(0, 0, 5).Add(18 * time.Hour),
+			EndDatetime:   timePtr(today.AddDate(0, 0, 5).Add(23 * time.Hour)),
+			Type:          "event",
+			CategoryID:    getCategoryIDByName("Social", categories),
+		},
+		
+		// +6 days
+		{
+			Title:         "Project Deadline",
+			Description:   "Final submission for CS project - GitHub repository due",
+			StartDatetime: today.AddDate(0, 0, 6).Add(23*time.Hour + 59*time.Minute),
+			EndDatetime:   timePtr(today.AddDate(0, 0, 6).Add(23*time.Hour + 59*time.Minute)),
+			Type:          "event",
+			CategoryID:    getCategoryIDByName("Projects", categories),
+		},
+		
+		// +7 days (next week)
+		{
+			Title:         "Guitar Lesson",
+			Description:   "Weekly lesson with instructor - Practice sheet music from last week",
+			StartDatetime: today.AddDate(0, 0, 7).Add(16 * time.Hour),
+			EndDatetime:   timePtr(today.AddDate(0, 0, 7).Add(17 * time.Hour)),
+			Type:          "event",
+			CategoryID:    getCategoryIDByName("Hobbies", categories),
+		},
+		{
+			Title:         "Budget Review",
+			Description:   "Monthly budget review and planning for next month",
+			StartDatetime: today.AddDate(0, 0, 7).Add(20 * time.Hour),
+			EndDatetime:   timePtr(today.AddDate(0, 0, 7).Add(21 * time.Hour)),
+			Type:          "event",
+			CategoryID:    getCategoryIDByName("Finance", categories),
+		},
+		
+		// Recurring weekly event (simulated for next 2 weeks)
+		{
+			Title:         "Monday Morning Planning",
+			Description:   "Weekly planning session - Set goals for the week",
+			StartDatetime: today.AddDate(0, 0, 7).Add(8 * time.Hour),
+			EndDatetime:   timePtr(today.AddDate(0, 0, 7).Add(9 * time.Hour)),
+			Type:          "event",
+			RecurrenceRule: "weekly",
+			CategoryID:    getCategoryIDByName("Personal", categories),
 		},
 	}
 
@@ -192,9 +305,13 @@ func createEvents(db *database.DB, categories []models.Category) {
 		if err := db.Events().Create(event); err != nil {
 			fmt.Printf("Error creating event '%s': %v\n", event.Title, err)
 		} else {
-			fmt.Printf("✓ Created: %s\n", event.Title)
+			fmt.Printf("✓ Created: %s (at %s)\n", event.Title, event.StartDatetime.Format("Mon Jan 02 15:04"))
 		}
 	}
+}
+
+func timePtr(t time.Time) *time.Time {
+	return &t
 }
 
 func getCategoryIDByName(name string, categories []models.Category) string {
